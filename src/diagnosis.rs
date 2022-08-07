@@ -1,5 +1,5 @@
 pub mod gitlab_connection;
-pub mod gitlab_storage;
+pub mod global_storage;
 
 pub enum ReportStatus {
     OK(String),

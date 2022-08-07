@@ -3,13 +3,13 @@ use crate::diagnosis::{Diagnosis, Report, ReportStatus};
 use gitlab::Gitlab;
 use human_bytes::human_bytes;
 
-pub struct GitlabStorage<'a> {
+pub struct GlobalStorage<'a> {
     pub gitlab: &'a Gitlab,
     pub project: &'a Project,
     pub report: Option<Report>,
 }
 
-impl Diagnosis for GitlabStorage<'_> {
+impl Diagnosis for GlobalStorage<'_> {
     fn diagnosis(&mut self) -> &Report {
         if self.report.is_none() {
             self.report = Some(self.analysis_storage());
@@ -18,9 +18,9 @@ impl Diagnosis for GitlabStorage<'_> {
     }
 }
 
-impl<'a> GitlabStorage<'a> {
-    pub fn new(gitlab: &'a Gitlab, project: &'a Project) -> GitlabStorage<'a> {
-        GitlabStorage {
+impl<'a> GlobalStorage<'a> {
+    pub fn new(gitlab: &'a Gitlab, project: &'a Project) -> GlobalStorage<'a> {
+        GlobalStorage {
             gitlab: gitlab,
             project: project,
             report: None,

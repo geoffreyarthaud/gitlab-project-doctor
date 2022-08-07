@@ -1,5 +1,5 @@
 use crate::diagnosis::gitlab_connection::GitlabConnection;
-use crate::diagnosis::gitlab_storage::GitlabStorage;
+use crate::diagnosis::global_storage::GlobalStorage;
 use crate::diagnosis::Diagnosis;
 use crate::diagnosis::{Report, ReportStatus};
 use console::style;
@@ -54,7 +54,7 @@ fn main() {
     display_report(gitlab_connection.diagnosis());
     let data = fatal_if_none(gitlab_connection.data, "Diagnosis stops here.");
 
-    let mut gitlab_storage = GitlabStorage::new(&data.gitlab, &data.project);
+    let mut gitlab_storage = GlobalStorage::new(&data.gitlab, &data.project);
     display_report(gitlab_storage.diagnosis());
 
     // println!(
