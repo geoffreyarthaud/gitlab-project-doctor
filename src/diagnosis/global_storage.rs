@@ -1,12 +1,18 @@
 use crate::diagnosis::gitlab_connection::Project;
-use crate::diagnosis::{Diagnosis, Report, ReportStatus};
+use crate::diagnosis::repo_size::RepositorySize;
+use crate::diagnosis::{Diagnosis, Report, ReportStatus, STORAGE_LIMIT};
 use gitlab::Gitlab;
 use human_bytes::human_bytes;
+use crate::diagnosis::artifact_size::ArtifactSize;
+use crate::diagnosis::package_size::PackageSize;
 
 pub struct GlobalStorage<'a> {
     pub gitlab: &'a Gitlab,
     pub project: &'a Project,
     pub report: Option<Report>,
+    pub repo_size: RepositorySize<'a>,
+    pub artifact_size: ArtifactSize<'a>,
+    pub package_size: PackageSize<'a>,
 }
 
 impl Diagnosis for GlobalStorage<'_> {
@@ -14,16 +20,19 @@ impl Diagnosis for GlobalStorage<'_> {
         if self.report.is_none() {
             self.report = Some(self.analysis_storage());
         }
-        &self.report.as_ref().unwrap()
+        self.report.as_ref().unwrap()
     }
 }
 
 impl<'a> GlobalStorage<'a> {
     pub fn new(gitlab: &'a Gitlab, project: &'a Project) -> GlobalStorage<'a> {
         GlobalStorage {
-            gitlab: gitlab,
-            project: project,
+            gitlab,
+            project,
             report: None,
+            repo_size: RepositorySize::new(project),
+            artifact_size: ArtifactSize::new(project),
+            package_size: PackageSize::new(project),
         }
     }
 
@@ -32,14 +41,16 @@ impl<'a> GlobalStorage<'a> {
             "Storage size : {}",
             human_bytes(self.project.statistics.storage_size as f64)
         );
-        let status = if self.project.statistics.storage_size < 1_000_000_000 {
+        let status = if self.project.statistics.storage_size < STORAGE_LIMIT {
             ReportStatus::OK(msg)
         } else {
             ReportStatus::WARNING(msg)
         };
         Report {
             global: status,
-            details: vec![],
+            details: vec![self.repo_size.analysis_storage(),
+                          self.artifact_size.analysis_storage(),
+                          self.package_size.analysis_storage()],
         }
     }
 }

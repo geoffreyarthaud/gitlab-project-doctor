@@ -4,10 +4,9 @@ use gitlab::Gitlab;
 use serde::Deserialize;
 use std::env;
 use std::error;
+use regex::Regex;
 
 use crate::diagnosis::{Diagnosis, Report, ReportStatus};
-
-const FORGE_URL: &str = "gitlab-forge.din.developpement-durable.gouv.fr";
 
 type Result<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -17,6 +16,7 @@ pub struct Statistics {
     pub storage_size: u64,
     pub repository_size: u64,
     pub job_artifacts_size: u64,
+    pub packages_size: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,8 +44,16 @@ impl Diagnosis for GitlabConnection {
 }
 
 impl GitlabConnection {
-    pub fn from_path(path: &str) -> GitlabConnection {
-        match GitlabConnection::_from_path(path) {
+    pub fn from_git_path(path: &str) -> GitlabConnection {
+        GitlabConnection::_to_report(GitlabConnection::_from_git_path(path))
+    }
+
+    pub fn from_url(url: &str) -> GitlabConnection {
+        GitlabConnection::_to_report(GitlabConnection::_from_url(url))
+    }
+
+    fn _to_report(result: Result<GitlabRepository>) -> GitlabConnection {
+        match result {
             Ok(gitlab) => GitlabConnection {
                 report: Report {
                     global: ReportStatus::OK(format!("Gitlab repository : {}", gitlab.url)),
@@ -62,31 +70,49 @@ impl GitlabConnection {
             },
         }
     }
-    fn _from_path(path: &str) -> Result<GitlabRepository> {
-        let repo = Repository::open(path).or_else(|_| Err("This dir is not a Git repository"))?;
-        let url = gitlab_url(&repo).ok_or("This dir does not contain a gitlab remote")?;
-        let token = env::var("GL_TOKEN").or_else(|_| {
-            Err("GL_TOKEN environment variable must contain a valid Gitlab private token")
+    fn _gitlab_project(server: &str, path: &str) -> Result<(Gitlab, Project)> {
+        let token = env::var("GL_TOKEN").map_err(|_| {
+            "GL_TOKEN environment variable must contain a valid Gitlab private token"
         })?;
-        let client = Gitlab::new(FORGE_URL, token)?;
+        let client = Gitlab::new(server, token)?;
         let endpoint = projects::Project::builder()
-            .project(url.clone())
+            .project(path)
             .statistics(true)
             .build()
             .unwrap();
 
         let project: Project = endpoint.query(&client)?;
+        Ok((client, project))
+    }
+
+    fn _from_url(url: &str) -> Result<GitlabRepository> {
+        let (server, path) = path_from_git_url(url)
+            .ok_or("This URL is not a gitlab repository")?;
+        let (gitlab, project) = GitlabConnection::_gitlab_project(server, path)?;
         Ok(GitlabRepository {
-            url: url,
-            gitlab: client,
-            project: project,
+            url: String::from(path),
+            gitlab,
+            project,
+            repo: None,
+        })
+    }
+
+    fn _from_git_path(path: &str) -> Result<GitlabRepository> {
+        let repo = Repository::open(path).map_err(|_| "This dir is not a Git repository")?;
+        let (server, url_path) = gitlab_url(&repo)
+            .ok_or("This dir does not contain a gitlab remote")?;
+        let (gitlab, project) = GitlabConnection::_gitlab_project(&server, &url_path)?;
+        Ok(GitlabRepository {
+            url: url_path,
+            gitlab,
+            project,
             repo: Some(repo),
         })
     }
 }
 
-fn gitlab_url(repo: &git2::Repository) -> Option<String> {
-    repo.remotes()
+fn gitlab_url(repo: &Repository) -> Option<(String, String)> {
+    let full_url = repo.remotes()
         .unwrap()
         .iter()
         .filter(|rmt_name| rmt_name.is_some())
@@ -94,12 +120,73 @@ fn gitlab_url(repo: &git2::Repository) -> Option<String> {
             let remote = repo.find_remote(rmt_name.unwrap()).unwrap();
             String::from(remote.url().unwrap())
         })
-        .find(move |url| url.find(FORGE_URL).is_some())
-        .map(|url| {
-            // Remove gitlab base URL + "/"
-            let pos = url.find(FORGE_URL).unwrap() + FORGE_URL.len() + 1;
-            // Remove ".git"
-            let end_pos = url.rfind(".git").unwrap_or(url.len());
-            String::from(url.get(pos..end_pos).unwrap())
-        })
+        .find(move |_| true)?;
+    let (server, path) = path_from_git_url(&full_url)?;
+    Some((String::from(server),String::from(path)))
+}
+
+fn path_from_git_url(url: &str) -> Option<(&str,&str)> {
+    _path_from_https_url(url).or_else(|| _path_from_ssh_url(url))
+}
+
+fn _path_from_https_url(url: &str) -> Option<(&str, &str)> {
+    let regex_git =
+        Regex::new("(http(s)?://)(.+?)/(.+)(\\.git)(/)?")
+            .unwrap();
+    let caps = regex_git.captures(url);
+    let server = caps.as_ref()?.get(3)?.as_str();
+    let path = caps.as_ref()?.get(4)?.as_str();
+    Some((server,path))
+}
+
+fn _path_from_ssh_url(url: &str) -> Option<(&str, &str)> {
+    let regex_git =
+        Regex::new("(git@)(.+?):(.+)(\\.git)(/)?")
+            .unwrap();
+    let caps = regex_git.captures(url);
+    let server = caps.as_ref()?.get(2)?.as_str();
+    let path = caps.as_ref()?.get(3)?.as_str();
+    Some((server,path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn path_from_ministry_https_url() {
+        // GIVEN
+        let url =
+            "https://gitlab-forge.din.developpement-durable.gouv.fr/snum/dam/gitlab/gitlab-usage.git";
+        // WHEN
+        let path = path_from_git_url(url);
+        // THEN
+        assert!(path.is_some());
+        assert_eq!(("gitlab-forge.din.developpement-durable.gouv.fr",
+            "snum/dam/gitlab/gitlab-usage"), path.unwrap());
+    }
+
+    #[test]
+    fn path_from_gitlab_https_url() {
+        // GIVEN
+        let url =
+            "https://gitlab.com/visiplus.formateur/debuter-javascript.git";
+        // WHEN
+        let path = path_from_git_url(url);
+        // THEN
+        assert!(path.is_some());
+        assert_eq!(("gitlab.com","visiplus.formateur/debuter-javascript"), path.unwrap());
+    }
+
+    #[test]
+    fn path_from_gitlab_ssh_url() {
+        // GIVEN
+        let url =
+            "git@gitlab.com:visiplus.formateur/debuter-javascript.git";
+        // WHEN
+        let path = path_from_git_url(url);
+        // THEN
+        assert!(path.is_some());
+        assert_eq!(("gitlab.com","visiplus.formateur/debuter-javascript"), path.unwrap());
+    }
 }

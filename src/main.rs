@@ -36,26 +36,38 @@ fn fatal_if_none<T>(result: Option<T>, msg: &str) -> T {
 //     arg_spec: Vec<String>,
 // }
 
-fn display_report(report: &Report) {
+fn display_report(report: &Report, indent: usize) {
+    let width = indent + 4;
     match &report.global {
         ReportStatus::OK(msg) => {
-            eprintln!("{} {}", style("[✓]").green(), msg);
+            eprintln!("{:>width$} {}", style("[✓]").green(), msg);
         }
         ReportStatus::WARNING(msg) => {
-            eprintln!("{} {}", style("[!]").yellow().bold(), style(msg).bold());
+            eprintln!(
+                "{:>width$} {}",
+                style("[!]").yellow().bold(),
+                style(msg).yellow().bold()
+            );
         }
         ReportStatus::ERROR(msg) => {
-            eprintln!("{} {}", style("[✘]").red().bold(), style(msg).bold());
+            eprintln!(
+                "{:>width$} {}",
+                style("[✘]").red().bold(),
+                style(msg).bold()
+            );
         }
+    }
+    for subreport in &report.details {
+        display_report(subreport, indent + 4);
     }
 }
 fn main() {
-    let mut gitlab_connection = GitlabConnection::from_path(".");
-    display_report(gitlab_connection.diagnosis());
+    let mut gitlab_connection = GitlabConnection::from_git_path(".");
+    display_report(gitlab_connection.diagnosis(), 0);
     let data = fatal_if_none(gitlab_connection.data, "Diagnosis stops here.");
 
     let mut gitlab_storage = GlobalStorage::new(&data.gitlab, &data.project);
-    display_report(gitlab_storage.diagnosis());
+    display_report(gitlab_storage.diagnosis(), 0);
 
     // println!(
     //     "{} Storage size : {}",
