@@ -31,7 +31,7 @@ impl<'a> GlobalStorage<'a> {
             project,
             report: None,
             repo_size: RepositorySize::new(project),
-            artifact_size: ArtifactSize::new(project),
+            artifact_size: ArtifactSize::new(gitlab, project),
             package_size: PackageSize::new(project),
         }
     }

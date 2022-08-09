@@ -2,6 +2,8 @@ use crate::diagnosis::gitlab_connection::GitlabConnection;
 use crate::diagnosis::global_storage::GlobalStorage;
 use crate::diagnosis::Diagnosis;
 use crate::diagnosis::{Report, ReportStatus};
+use structopt::StructOpt;
+
 use console::style;
 use std::process;
 
@@ -11,36 +13,28 @@ fn fatal_if_none<T>(result: Option<T>, msg: &str) -> T {
     match result {
         Some(x) => x,
         None => {
-            eprintln!("{msg}");
+            eprintln!("{}", msg);
             process::exit(1);
         }
     }
 }
 
-// TODO Make structopt
-// #[derive(StructOpt)]
-// struct Args {
-//     #[structopt(name = "topo-order", long)]
-//     /// sort commits in topological order
-//     flag_topo_order: bool,
-//     #[structopt(name = "date-order", long)]
-//     /// sort commits in date order
-//     flag_date_order: bool,
-//     #[structopt(name = "reverse", long)]
-//     /// sort commits in reverse
-//     flag_reverse: bool,
-//     #[structopt(name = "not")]
-//     /// don't show <spec>
-//     flag_not: Vec<String>,
-//     #[structopt(name = "spec", last = true)]
-//     arg_spec: Vec<String>,
-// }
+
+#[derive(StructOpt)]
+struct Args {
+    #[structopt(name = "url", long)]
+    /// Analyze the project from the URL of Gitlab repository
+    url: Option<String>,
+    #[structopt(name = "git_path")]
+    /// Analyze the project from a local path of a Git repository
+    git_path: Option<String>,
+}
 
 fn display_report(report: &Report, indent: usize) {
     let width = indent + 4;
     match &report.global {
         ReportStatus::OK(msg) => {
-            eprintln!("{:>width$} {}", style("[✓]").green(), msg);
+            eprintln!("{:>width$} {}", style("[✓]").green(), msg, width = width);
         }
         ReportStatus::WARNING(msg) => {
             eprintln!(
@@ -56,13 +50,30 @@ fn display_report(report: &Report, indent: usize) {
                 style(msg).bold()
             );
         }
+        ReportStatus::NA(msg) => {
+            eprintln!(
+                "{:>width$} {}",
+                style("[-]").bold(),
+                style(msg).bold()
+            );
+        }
     }
     for subreport in &report.details {
         display_report(subreport, indent + 4);
     }
 }
 fn main() {
-    let mut gitlab_connection = GitlabConnection::from_git_path(".");
+    let args = Args::from_args();
+    let mut gitlab_connection = {
+        if args.url.is_some() {
+           GitlabConnection::from_url(&args.url.unwrap())
+        } else {
+            let default_path = String::from(".");
+            let path: &str = args.git_path.as_ref().unwrap_or(&default_path);
+            GitlabConnection::from_git_path(path)
+        }
+    };
+
     display_report(gitlab_connection.diagnosis(), 0);
     let data = fatal_if_none(gitlab_connection.data, "Diagnosis stops here.");
 

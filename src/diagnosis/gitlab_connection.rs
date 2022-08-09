@@ -21,6 +21,7 @@ pub struct Statistics {
 
 #[derive(Debug, Deserialize)]
 pub struct Project {
+    pub id: u64,
     pub name: String,
     pub statistics: Statistics,
 }
@@ -131,12 +132,12 @@ fn path_from_git_url(url: &str) -> Option<(&str,&str)> {
 
 fn _path_from_https_url(url: &str) -> Option<(&str, &str)> {
     let regex_git =
-        Regex::new("(http(s)?://)(.+?)/(.+)(\\.git)(/)?")
+        Regex::new("(http(s)?://)(.+?)/(.+)(\\.git)?(/)?")
             .unwrap();
     let caps = regex_git.captures(url);
     let server = caps.as_ref()?.get(3)?.as_str();
     let path = caps.as_ref()?.get(4)?.as_str();
-    Some((server,path))
+    Some((server,path.trim_end_matches('/').trim_end_matches(".git")))
 }
 
 fn _path_from_ssh_url(url: &str) -> Option<(&str, &str)> {
@@ -164,6 +165,19 @@ mod tests {
         assert!(path.is_some());
         assert_eq!(("gitlab-forge.din.developpement-durable.gouv.fr",
             "snum/dam/gitlab/gitlab-usage"), path.unwrap());
+    }
+
+    #[test]
+    fn path_from_ministry_https_url_without_git() {
+        // GIVEN
+        let url =
+            "https://gitlab-forge.din.developpement-durable.gouv.fr/snum/dam/gitlab/gitlab-usage";
+        // WHEN
+        let path = path_from_git_url(url);
+        // THEN
+        assert!(path.is_some());
+        assert_eq!(("gitlab-forge.din.developpement-durable.gouv.fr",
+                    "snum/dam/gitlab/gitlab-usage"), path.unwrap());
     }
 
     #[test]
