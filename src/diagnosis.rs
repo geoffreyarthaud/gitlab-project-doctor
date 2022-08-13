@@ -1,11 +1,11 @@
+pub mod artifact_size;
 pub mod gitlab_connection;
 pub mod global_storage;
-pub mod repo_size;
-pub mod artifact_size;
 pub mod package_size;
+pub mod repo_size;
 
-pub const STORAGE_LIMIT : u64 = 2_000_000_000;
-pub const REPO_LIMIT : u64 = 100_000_000;
+pub const STORAGE_LIMIT: u64 = 2_000_000_000;
+pub const REPO_LIMIT: u64 = 100_000_000;
 pub const ARTIFACT_JOBS_LIMIT: u64 = 500_000_000;
 pub const ARTIFACT_JOBS_NB_LIMIT: usize = 1_000;
 pub const ARTIFACT_JOBS_DAYS_LIMIT: i64 = 30;
@@ -16,13 +16,14 @@ pub enum ReportStatus {
     OK(String),
     WARNING(String),
     ERROR(String),
-    NA(String)
+    NA(String),
+    PENDING(String),
 }
 impl ReportStatus {
     fn to_report(self) -> Report {
         Report {
             global: self,
-            details: vec![]
+            details: vec![],
         }
     }
 }
