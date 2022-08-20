@@ -1,10 +1,12 @@
 use crate::diagnosis::gitlab_connection::{ConnectionJob};
-use crate::diagnosis::{ReportJob};
+use crate::diagnosis::{Reportable, ReportJob, ReportPending};
 use crate::diagnosis::{ReportStatus};
 use structopt::StructOpt;
 
 use console::style;
 use std::process;
+use std::time::Duration;
+use indicatif::ProgressBar;
 
 pub mod diagnosis;
 
@@ -28,72 +30,39 @@ struct Args {
     git_path: Option<String>,
 }
 
-// fn display_report(report: &Report, indent: usize) {
-//     let width = indent + 4;
-//     match &report.global {
-//         ReportStatus::OK(msg) => {
-//             eprintln!("{:>width$} {}", style("[✓]").green(), msg, width = width);
-//         }
-//         ReportStatus::WARNING(msg) => {
-//             eprintln!(
-//                 "{:>width$} {}",
-//                 style("[!]").yellow().bold(),
-//                 style(msg).yellow().bold()
-//             );
-//         }
-//         ReportStatus::ERROR(msg) => {
-//             eprintln!(
-//                 "{:>width$} {}",
-//                 style("[✘]").red().bold(),
-//                 style(msg).bold()
-//             );
-//         }
-//         ReportStatus::NA(msg) => {
-//             eprintln!(
-//                 "{:>width$} {}",
-//                 style("[-]").bold(),
-//                 style(msg).bold()
-//             );
-//         }
-//     }
-//     for subreport in &report.details {
-//         display_report(subreport, indent + 4);
-//     }
-// }
-
-fn display_report_status(report: &ReportStatus, indent: usize) {
+fn console_report_status(report: &ReportStatus, indent: usize) -> String {
     let width = indent + 4;
     match &report {
         ReportStatus::OK(msg) => {
-            eprintln!("{:>width$} {}", style("[✓]").green(), msg, width = width);
+            format!("{:>width$} {}", style("[✓]").green(), msg, width = width)
         }
         ReportStatus::WARNING(msg) => {
-            eprintln!(
+            format!(
                 "{:>width$} {}",
                 style("[!]").yellow().bold(),
                 style(msg).yellow().bold()
-            );
+            )
         }
         ReportStatus::ERROR(msg) => {
-            eprintln!(
+            format!(
                 "{:>width$} {}",
                 style("[✘]").red().bold(),
                 style(msg).bold()
-            );
+            )
         }
         ReportStatus::NA(msg) => {
-            eprintln!(
+            format!(
                 "{:>width$} {}",
                 style("[-]").bold(),
                 style(msg).bold()
-            );
+            )
         }
     }
 }
 
 fn main() {
     let args = Args::from_args();
-    let gitlab_connection = {
+    let connection_job = {
         if args.url.is_some() {
            ConnectionJob::FromUrl(args.url.unwrap())
         } else {
@@ -102,37 +71,30 @@ fn main() {
             ConnectionJob::FromPath(path.to_string())
         }
     };
-    let connection = gitlab_connection.diagnose().job.join().unwrap();
-
-    display_report_status(&connection.report_status, 0);
+    let report_pending = connection_job.diagnose();
+    let connection = display_report_pending(report_pending);
     fatal_if_none(connection.data, "Diagnosis stops here.");
+
     //
     // let mut gitlab_storage = GlobalStorage::new(&data.gitlab, &data.project);
     // display_report(gitlab_storage.diagnosis(), 0);
 
-    // println!(
-    //     "{} Storage size : {}",
-    //     style("[✓]").green(),
-    //     human_bytes(gitlab_repo.project.statistics.storage_size as f64)
-    // );
-    // println!(
-    //     "    {} Repository size : {} ({} %)",
-    //     style("[✓]").green(),
-    //     human_bytes(gitlab_repo.project.statistics.repository_size as f64),
-    //     100 * gitlab_repo.project.statistics.repository_size
-    //         / gitlab_repo.project.statistics.storage_size
-    // );
-    // println!(
-    //     "    {} Job artifacts size : {} ({} %)",
-    //     style("[✓]").green(),
-    //     human_bytes(gitlab_repo.project.statistics.job_artifacts_size as f64),
-    //     100 * gitlab_repo.project.statistics.job_artifacts_size
-    //         / gitlab_repo.project.statistics.storage_size
-    // );
 
     // let mut revs = repo.revwalk().unwrap();
     // revs.push_head().unwrap();
     // for rev in revs {
     //     println!("{}", rev.unwrap());
     // }
+}
+
+fn display_report_pending<T: Reportable>(report_pending: ReportPending<T>) -> T {
+    let pb = ProgressBar::new_spinner();
+    pb.enable_steady_tick(Duration::from_millis(50));
+    pb.set_message(format!("[*] {}", &report_pending.pending_msg));
+    while !report_pending.job.is_finished() {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let result = report_pending.job.join().unwrap();
+    pb.finish_with_message(console_report_status(&result.report(), 0));
+    result
 }
