@@ -6,7 +6,7 @@ use std::env;
 use std::error;
 use regex::Regex;
 
-use crate::diagnosis::{Diagnosis, Report, ReportStatus};
+use crate::diagnosis::{Reportable, ReportJob, ReportPending, ReportStatus};
 
 type Result<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -33,41 +33,50 @@ pub struct GitlabRepository {
     pub repo: Option<Repository>,
 }
 
-pub struct GitlabConnection {
+pub struct ConnectionReport {
     pub data: Option<GitlabRepository>,
-    pub report: Report,
+    pub report_status: ReportStatus
 }
 
-impl Diagnosis for GitlabConnection {
-    fn diagnosis(&mut self) -> &Report {
-        &self.report
+pub enum ConnectionJob {
+    FromUrl(String),
+    FromPath(String)
+}
+
+impl ReportJob for ConnectionJob {
+    type Diagnosis = ConnectionReport;
+
+    fn diagnose(self) -> ReportPending<Self::Diagnosis> {
+        ReportPending::<Self::Diagnosis> {
+            pending_msg: "Connecting to Gitlab".to_string(),
+            job: {
+                std::thread::spawn(|| {
+                    ConnectionJob::_to_report_status(match self {
+                        ConnectionJob::FromUrl(url) => ConnectionJob::_from_url(&url),
+                        ConnectionJob::FromPath(path) => ConnectionJob::_from_git_path(&path)
+                    })
+                })
+            }
+        }
     }
 }
 
-impl GitlabConnection {
-    pub fn from_git_path(path: &str) -> GitlabConnection {
-        GitlabConnection::_to_report(GitlabConnection::_from_git_path(path))
+impl Reportable for ConnectionReport {
+    fn report(&self) -> ReportStatus {
+        self.report_status.clone()
     }
+}
 
-    pub fn from_url(url: &str) -> GitlabConnection {
-        GitlabConnection::_to_report(GitlabConnection::_from_url(url))
-    }
-
-    fn _to_report(result: Result<GitlabRepository>) -> GitlabConnection {
+impl ConnectionJob {
+    fn _to_report_status(result: Result<GitlabRepository>) -> ConnectionReport {
         match result {
-            Ok(gitlab) => GitlabConnection {
-                report: Report {
-                    global: ReportStatus::OK(format!("Gitlab repository : {}", gitlab.url)),
-                    details: vec![],
-                },
+            Ok(gitlab) => ConnectionReport {
+                report_status: ReportStatus::OK(format!("Gitlab repository : {}", gitlab.url)),
                 data: Some(gitlab),
             },
-            Err(e) => GitlabConnection {
+            Err(e) => ConnectionReport {
                 data: None,
-                report: Report {
-                    global: ReportStatus::ERROR(format!("{}", e)),
-                    details: vec![],
-                },
+                report_status: ReportStatus::ERROR(format!("{}", e))
             },
         }
     }
@@ -89,7 +98,7 @@ impl GitlabConnection {
     fn _from_url(url: &str) -> Result<GitlabRepository> {
         let (server, path) = path_from_git_url(url)
             .ok_or("This URL is not a gitlab repository")?;
-        let (gitlab, project) = GitlabConnection::_gitlab_project(server, path)?;
+        let (gitlab, project) = ConnectionJob::_gitlab_project(server, path)?;
         Ok(GitlabRepository {
             url: String::from(path),
             gitlab,
@@ -102,7 +111,7 @@ impl GitlabConnection {
         let repo = Repository::open(path).map_err(|_| "This dir is not a Git repository")?;
         let (server, url_path) = gitlab_url(&repo)
             .ok_or("This dir does not contain a gitlab remote")?;
-        let (gitlab, project) = GitlabConnection::_gitlab_project(&server, &url_path)?;
+        let (gitlab, project) = ConnectionJob::_gitlab_project(&server, &url_path)?;
         Ok(GitlabRepository {
             url: url_path,
             gitlab,

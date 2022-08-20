@@ -1,3 +1,5 @@
+use std::thread::JoinHandle;
+
 pub mod artifact_size;
 pub mod gitlab_connection;
 pub mod global_storage;
@@ -12,13 +14,14 @@ pub const ARTIFACT_JOBS_DAYS_LIMIT: i64 = 30;
 pub const PACKAGE_REGISTRY_LIMIT: u64 = 1_000_000_000;
 pub const DOCKER_REGISTRY_LIMIT: u64 = 5_000_000_000;
 
+#[derive(Clone)]
 pub enum ReportStatus {
     OK(String),
     WARNING(String),
     ERROR(String),
-    NA(String),
-    PENDING(String),
+    NA(String)
 }
+
 impl ReportStatus {
     fn to_report(self) -> Report {
         Report {
@@ -31,6 +34,19 @@ impl ReportStatus {
 pub struct Report {
     pub global: ReportStatus,
     pub details: Vec<Report>,
+}
+pub struct ReportPending<T> {
+    pub pending_msg: String,
+    pub job: JoinHandle<T>
+}
+
+pub trait ReportJob {
+    type Diagnosis: Reportable;
+    fn diagnose(self) -> ReportPending<Self::Diagnosis>;
+}
+
+pub trait Reportable {
+    fn report(&self) -> ReportStatus;
 }
 
 pub trait Diagnosis {
