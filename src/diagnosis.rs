@@ -46,7 +46,7 @@ pub trait ReportJob {
 }
 
 pub trait Reportable {
-    fn report(&self) -> ReportStatus;
+    fn report(&self) -> Vec<ReportStatus>;
 }
 
 pub trait Diagnosis {

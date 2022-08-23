@@ -1,12 +1,14 @@
-use crate::diagnosis::gitlab_connection::{ConnectionJob};
-use crate::diagnosis::{Reportable, ReportJob, ReportPending};
-use crate::diagnosis::{ReportStatus};
-use structopt::StructOpt;
+use std::{process};
+use std::fmt::Write as _;
+use std::time::Duration;
 
 use console::style;
-use std::process;
-use std::time::Duration;
 use indicatif::ProgressBar;
+use structopt::StructOpt;
+
+use crate::diagnosis::{Reportable, ReportJob, ReportPending};
+use crate::diagnosis::ReportStatus;
+use crate::diagnosis::gitlab_connection::ConnectionJob;
 
 pub mod diagnosis;
 
@@ -30,41 +32,46 @@ struct Args {
     git_path: Option<String>,
 }
 
-fn console_report_status(report: &ReportStatus, indent: usize) -> String {
+fn console_report_status(report_statuses: &[ReportStatus], indent: usize) -> String {
     let width = indent + 4;
-    match &report {
-        ReportStatus::OK(msg) => {
-            format!("{:>width$} {}", style("[✓]").green(), msg, width = width)
-        }
-        ReportStatus::WARNING(msg) => {
-            format!(
-                "{:>width$} {}",
-                style("[!]").yellow().bold(),
-                style(msg).yellow().bold()
-            )
-        }
-        ReportStatus::ERROR(msg) => {
-            format!(
-                "{:>width$} {}",
-                style("[✘]").red().bold(),
-                style(msg).bold()
-            )
-        }
-        ReportStatus::NA(msg) => {
-            format!(
-                "{:>width$} {}",
-                style("[-]").bold(),
-                style(msg).bold()
-            )
-        }
+    let mut result = String::new();
+    let _ = writeln!(result);
+    for report in report_statuses.iter() {
+        let _ = match &report {
+            ReportStatus::OK(msg) => {
+                writeln!(result, "{:>width$} {}", style("[✓]").green(), msg, width = width)
+            }
+            ReportStatus::WARNING(msg) => {
+                writeln!(result,
+                         "{:>width$} {}",
+                         style("[!]").yellow().bold(),
+                         style(msg).yellow().bold(), width = width
+                )
+            }
+            ReportStatus::ERROR(msg) => {
+                writeln!(result,
+                         "{:>width$} {}",
+                         style("[✘]").red().bold(),
+                         style(msg).bold(), width = width
+                )
+            }
+            ReportStatus::NA(msg) => {
+                writeln!(result,
+                         "{:>width$} {}",
+                         style("[-]").bold(),
+                         style(msg).bold(), width = width
+                )
+            }
+        };
     }
+    result
 }
 
 fn main() {
     let args = Args::from_args();
     let connection_job = {
         if args.url.is_some() {
-           ConnectionJob::FromUrl(args.url.unwrap())
+            ConnectionJob::FromUrl(args.url.unwrap())
         } else {
             let default_path = String::from(".");
             let path: &str = args.git_path.as_ref().unwrap_or(&default_path);
@@ -72,8 +79,11 @@ fn main() {
         }
     };
     let report_pending = connection_job.diagnose();
-    let connection = display_report_pending(report_pending);
-    fatal_if_none(connection.data, "Diagnosis stops here.");
+    let _ = display_report_pending(report_pending);
+    // let connection_data = fatal_if_none(connection.data, "Diagnosis stops here.");
+
+    //display_report_pending(RepoStorageJob::from(&connection_data.project).diagnose());
+
 
     //
     // let mut gitlab_storage = GlobalStorage::new(&data.gitlab, &data.project);
@@ -91,9 +101,6 @@ fn display_report_pending<T: Reportable>(report_pending: ReportPending<T>) -> T 
     let pb = ProgressBar::new_spinner();
     pb.enable_steady_tick(Duration::from_millis(50));
     pb.set_message(format!("[*] {}", &report_pending.pending_msg));
-    while !report_pending.job.is_finished() {
-        std::thread::sleep(Duration::from_millis(50));
-    }
     let result = report_pending.job.join().unwrap();
     pb.finish_with_message(console_report_status(&result.report(), 0));
     result

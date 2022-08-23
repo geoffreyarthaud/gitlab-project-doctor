@@ -5,12 +5,13 @@ use serde::Deserialize;
 use std::env;
 use std::error;
 use regex::Regex;
+use human_bytes::human_bytes;
 
-use crate::diagnosis::{Reportable, ReportJob, ReportPending, ReportStatus};
+use crate::diagnosis::{ARTIFACT_JOBS_LIMIT, PACKAGE_REGISTRY_LIMIT, REPO_LIMIT, Reportable, ReportJob, ReportPending, ReportStatus, STORAGE_LIMIT, warning_if};
 
 type Result<T> = std::result::Result<T, Box<dyn error::Error>>;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Statistics {
     pub commit_count: u64,
     pub storage_size: u64,
@@ -19,7 +20,7 @@ pub struct Statistics {
     pub packages_size: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Project {
     pub id: u64,
     pub name: String,
@@ -35,7 +36,7 @@ pub struct GitlabRepository {
 
 pub struct ConnectionReport {
     pub data: Option<GitlabRepository>,
-    pub report_status: ReportStatus
+    pub report_status: Vec<ReportStatus>
 }
 
 pub enum ConnectionJob {
@@ -62,7 +63,7 @@ impl ReportJob for ConnectionJob {
 }
 
 impl Reportable for ConnectionReport {
-    fn report(&self) -> ReportStatus {
+    fn report(&self) -> Vec<ReportStatus> {
         self.report_status.clone()
     }
 }
@@ -71,12 +72,17 @@ impl ConnectionJob {
     fn _to_report_status(result: Result<GitlabRepository>) -> ConnectionReport {
         match result {
             Ok(gitlab) => ConnectionReport {
-                report_status: ReportStatus::OK(format!("Gitlab repository : {}", gitlab.url)),
+                report_status: vec![ReportStatus::OK(format!("Gitlab repository : {}", gitlab
+                    .url)),
+                                _report_global_storage(&gitlab.project),
+                                _report_repo_storage(&gitlab.project),
+                                _report_artifact_storage(&gitlab.project),
+                                _report_package_storage(&gitlab.project)],
                 data: Some(gitlab),
             },
             Err(e) => ConnectionReport {
                 data: None,
-                report_status: ReportStatus::ERROR(format!("{}", e))
+                report_status: vec![ReportStatus::ERROR(format!("{}", e))]
             },
         }
     }
@@ -119,6 +125,53 @@ impl ConnectionJob {
             repo: Some(repo),
         })
     }
+}
+
+fn _report_global_storage(project: &Project) -> ReportStatus {
+    let msg = format!(
+        "Storage size : {}",
+        human_bytes(project.statistics.storage_size as f64)
+    );
+
+    warning_if(
+        project.statistics.storage_size > STORAGE_LIMIT,
+        msg)
+}
+
+fn _report_repo_storage(project: &Project) -> ReportStatus {
+    let msg = format!(
+        "Git repository size : {} ({} %)",
+        human_bytes(project.statistics.repository_size as f64),
+        100 * project.statistics.repository_size / project.statistics.storage_size
+    );
+
+    warning_if(
+        project.statistics.repository_size > REPO_LIMIT,
+        msg)
+}
+
+fn _report_artifact_storage(project: &Project) -> ReportStatus {
+    let msg = format!(
+        "Artifact jobs size : {} ({} %)",
+        human_bytes(project.statistics.job_artifacts_size as f64),
+        100 * project.statistics.job_artifacts_size / project.statistics.storage_size
+    );
+    warning_if(
+        project.statistics.job_artifacts_size > ARTIFACT_JOBS_LIMIT,
+        msg,
+    )
+}
+
+fn _report_package_storage(project: &Project) -> ReportStatus {
+    let msg = format!(
+        "Package registry size : {} ({} %)",
+        human_bytes(project.statistics.packages_size as f64),
+        100 * project.statistics.packages_size / project.statistics.storage_size
+    );
+    warning_if(
+        project.statistics.packages_size > PACKAGE_REGISTRY_LIMIT,
+        msg,
+    )
 }
 
 fn gitlab_url(repo: &Repository) -> Option<(String, String)> {
