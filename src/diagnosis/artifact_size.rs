@@ -2,6 +2,7 @@ use chrono::{DateTime, Duration, Local};
 use gitlab::api::{Pagination, projects, Query};
 use gitlab::api::paged;
 use gitlab::Gitlab;
+use human_bytes::human_bytes;
 use serde::Deserialize;
 
 use crate::{Reportable, ReportJob, ReportPending};
@@ -29,6 +30,7 @@ pub struct ArtifactSizeJob {
 pub struct ArtifactReport {
     pub gitlab_jobs: Vec<GitlabJob>,
     pub report_status: Vec<ReportStatus>,
+    pub bytes_savable: u64
 }
 
 impl Reportable for ArtifactReport {
@@ -50,6 +52,7 @@ impl ReportJob for ArtifactSizeJob {
                             report_status: vec![
                                 ReportStatus::NA("No CI/CD configured on this project".to_string())],
                             gitlab_jobs: vec![],
+                            bytes_savable: 0
                         };
                     }
                     let endpoint = projects::jobs::Jobs::builder()
@@ -57,9 +60,11 @@ impl ReportJob for ArtifactSizeJob {
                         .build()
                         .unwrap();
                     let jobs: Vec<GitlabJob> = paged(endpoint, Pagination::All).query(&self.gitlab).unwrap();
+                    let (report, bytes_savable) = ArtifactSizeJob::_number_jobs(&jobs);
                     ArtifactReport {
-                        report_status: ArtifactSizeJob::_number_jobs(&jobs),
+                        report_status: vec![report],
                         gitlab_jobs: jobs,
+                        bytes_savable
                     }
                 })
             },
@@ -75,14 +80,22 @@ impl ArtifactSizeJob {
         }
     }
 
-    fn _number_jobs(jobs: &Vec<GitlabJob>) -> Vec<ReportStatus> {
+    fn _number_jobs(jobs: &[GitlabJob]) -> (ReportStatus, u64) {
         let ref_date = Local::now() - Duration::days(ARTIFACT_JOBS_DAYS_LIMIT);
-        let count_old = jobs.iter().filter(|j| j.created_at.le(&ref_date)).count();
-        vec![ReportStatus::NA(format!(
-            "{} jobs ({} %) are older than {} days",
-            count_old,
-            100 * count_old / jobs.len(),
+        let mut old_count: usize = 0;
+        let mut old_size: u64 = 0;
+        for job in jobs.iter() {
+            let artifact_size: u64 = job.artifacts.iter().map(|a| a.size).sum();
+            if job.created_at.le(&ref_date) {
+                old_count += 1;
+                old_size += artifact_size;
+            }
+        }
+        (ReportStatus::NA(format!(
+            "{} jobs ({}) are older than {} days",
+            old_count,
+            human_bytes(old_size as f64),
             ARTIFACT_JOBS_DAYS_LIMIT
-        ))]
+        )), old_size)
     }
 }
