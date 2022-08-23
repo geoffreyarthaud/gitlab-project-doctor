@@ -1,4 +1,4 @@
-use std::{process};
+use std::process;
 use std::fmt::Write as _;
 use std::time::Duration;
 
@@ -7,8 +7,9 @@ use indicatif::ProgressBar;
 use structopt::StructOpt;
 
 use crate::diagnosis::{Reportable, ReportJob, ReportPending};
-use crate::diagnosis::ReportStatus;
+use crate::diagnosis::artifact_size::ArtifactSizeJob;
 use crate::diagnosis::gitlab_connection::ConnectionJob;
+use crate::diagnosis::ReportStatus;
 
 pub mod diagnosis;
 
@@ -32,37 +33,45 @@ struct Args {
     git_path: Option<String>,
 }
 
-fn console_report_status(report_statuses: &[ReportStatus], indent: usize) -> String {
+fn console_report_status(buffer: &mut String, report_status: &ReportStatus, indent: usize) {
     let width = indent + 4;
+    let _ = match &report_status {
+        ReportStatus::OK(msg) => {
+            writeln!(buffer, "{:>width$} {}", style("[✓]").green(), msg, width = width)
+        }
+        ReportStatus::WARNING(msg) => {
+            writeln!(buffer,
+                     "{:>width$} {}",
+                     style("[!]").yellow().bold(),
+                     style(msg).yellow().bold(), width = width
+            )
+        }
+        ReportStatus::ERROR(msg) => {
+            writeln!(buffer,
+                     "{:>width$} {}",
+                     style("[✘]").red().bold(),
+                     style(msg).bold(), width = width
+            )
+        }
+        ReportStatus::NA(msg) => {
+            writeln!(buffer,
+                     "{:>width$} {}",
+                     style("[-]").bold(),
+                     style(msg).bold(), width = width
+            )
+        }
+    };
+}
+
+fn console_report_statuses(report_statuses: &[ReportStatus]) -> String {
     let mut result = String::new();
-    let _ = writeln!(result);
-    for report in report_statuses.iter() {
-        let _ = match &report {
-            ReportStatus::OK(msg) => {
-                writeln!(result, "{:>width$} {}", style("[✓]").green(), msg, width = width)
-            }
-            ReportStatus::WARNING(msg) => {
-                writeln!(result,
-                         "{:>width$} {}",
-                         style("[!]").yellow().bold(),
-                         style(msg).yellow().bold(), width = width
-                )
-            }
-            ReportStatus::ERROR(msg) => {
-                writeln!(result,
-                         "{:>width$} {}",
-                         style("[✘]").red().bold(),
-                         style(msg).bold(), width = width
-                )
-            }
-            ReportStatus::NA(msg) => {
-                writeln!(result,
-                         "{:>width$} {}",
-                         style("[-]").bold(),
-                         style(msg).bold(), width = width
-                )
-            }
-        };
+    if report_statuses.is_empty() {
+        return result;
+    }
+    let mut statuses_iter = report_statuses.iter();
+    console_report_status(&mut result, statuses_iter.next().unwrap(), 0);
+    for report_status in statuses_iter {
+        console_report_status(&mut result, report_status, 2);
     }
     result
 }
@@ -78,30 +87,23 @@ fn main() {
             ConnectionJob::FromPath(path.to_string())
         }
     };
+
+    // Connection to Gitlab
     let report_pending = connection_job.diagnose();
+    let connection = display_report_pending(report_pending);
+
+    let connection_data = fatal_if_none(connection.data, "Diagnosis stops here.");
+
+    // Analysis of artifacts
+    let report_pending = ArtifactSizeJob::from(&connection_data).diagnose();
     let _ = display_report_pending(report_pending);
-    // let connection_data = fatal_if_none(connection.data, "Diagnosis stops here.");
-
-    //display_report_pending(RepoStorageJob::from(&connection_data.project).diagnose());
-
-
-    //
-    // let mut gitlab_storage = GlobalStorage::new(&data.gitlab, &data.project);
-    // display_report(gitlab_storage.diagnosis(), 0);
-
-
-    // let mut revs = repo.revwalk().unwrap();
-    // revs.push_head().unwrap();
-    // for rev in revs {
-    //     println!("{}", rev.unwrap());
-    // }
 }
 
 fn display_report_pending<T: Reportable>(report_pending: ReportPending<T>) -> T {
     let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(Duration::from_millis(50));
-    pb.set_message(format!("[*] {}", &report_pending.pending_msg));
+    pb.enable_steady_tick(Duration::from_millis(100));
+    pb.set_message(format!(" [*] {}", &report_pending.pending_msg));
     let result = report_pending.job.join().unwrap();
-    pb.finish_with_message(console_report_status(&result.report(), 0));
+    pb.finish_with_message(console_report_statuses(&result.report()));
     result
 }

@@ -2,9 +2,6 @@ use std::thread::JoinHandle;
 
 pub mod artifact_size;
 pub mod gitlab_connection;
-pub mod global_storage;
-pub mod package_size;
-pub mod repo_size;
 
 pub const STORAGE_LIMIT: u64 = 2_000_000_000;
 pub const REPO_LIMIT: u64 = 100_000_000;
@@ -19,25 +16,12 @@ pub enum ReportStatus {
     OK(String),
     WARNING(String),
     ERROR(String),
-    NA(String)
+    NA(String),
 }
 
-impl ReportStatus {
-    fn to_report(self) -> Report {
-        Report {
-            global: self,
-            details: vec![],
-        }
-    }
-}
-
-pub struct Report {
-    pub global: ReportStatus,
-    pub details: Vec<Report>,
-}
 pub struct ReportPending<T> {
     pub pending_msg: String,
-    pub job: JoinHandle<T>
+    pub job: JoinHandle<T>,
 }
 
 pub trait ReportJob {
@@ -47,10 +31,6 @@ pub trait ReportJob {
 
 pub trait Reportable {
     fn report(&self) -> Vec<ReportStatus>;
-}
-
-pub trait Diagnosis {
-    fn diagnosis(&mut self) -> &Report;
 }
 
 pub fn warning_if(condition: bool, message: String) -> ReportStatus {

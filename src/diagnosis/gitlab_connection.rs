@@ -1,11 +1,12 @@
+use std::env;
+use std::error;
+
 use git2::Repository;
 use gitlab::api::{projects, Query};
 use gitlab::Gitlab;
-use serde::Deserialize;
-use std::env;
-use std::error;
-use regex::Regex;
 use human_bytes::human_bytes;
+use regex::Regex;
+use serde::Deserialize;
 
 use crate::diagnosis::{ARTIFACT_JOBS_LIMIT, PACKAGE_REGISTRY_LIMIT, REPO_LIMIT, Reportable, ReportJob, ReportPending, ReportStatus, STORAGE_LIMIT, warning_if};
 
@@ -25,6 +26,7 @@ pub struct Project {
     pub id: u64,
     pub name: String,
     pub statistics: Statistics,
+    pub jobs_enabled: bool,
 }
 
 pub struct GitlabRepository {
@@ -36,12 +38,12 @@ pub struct GitlabRepository {
 
 pub struct ConnectionReport {
     pub data: Option<GitlabRepository>,
-    pub report_status: Vec<ReportStatus>
+    pub report_status: Vec<ReportStatus>,
 }
 
 pub enum ConnectionJob {
     FromUrl(String),
-    FromPath(String)
+    FromPath(String),
 }
 
 impl ReportJob for ConnectionJob {
@@ -57,7 +59,7 @@ impl ReportJob for ConnectionJob {
                         ConnectionJob::FromPath(path) => ConnectionJob::_from_git_path(&path)
                     })
                 })
-            }
+            },
         }
     }
 }
@@ -74,15 +76,15 @@ impl ConnectionJob {
             Ok(gitlab) => ConnectionReport {
                 report_status: vec![ReportStatus::OK(format!("Gitlab repository : {}", gitlab
                     .url)),
-                                _report_global_storage(&gitlab.project),
-                                _report_repo_storage(&gitlab.project),
-                                _report_artifact_storage(&gitlab.project),
-                                _report_package_storage(&gitlab.project)],
+                                    _report_global_storage(&gitlab.project),
+                                    _report_repo_storage(&gitlab.project),
+                                    _report_artifact_storage(&gitlab.project),
+                                    _report_package_storage(&gitlab.project)],
                 data: Some(gitlab),
             },
             Err(e) => ConnectionReport {
                 data: None,
-                report_status: vec![ReportStatus::ERROR(format!("{}", e))]
+                report_status: vec![ReportStatus::ERROR(format!("{}", e))],
             },
         }
     }
@@ -185,10 +187,10 @@ fn gitlab_url(repo: &Repository) -> Option<(String, String)> {
         })
         .find(move |_| true)?;
     let (server, path) = path_from_git_url(&full_url)?;
-    Some((String::from(server),String::from(path)))
+    Some((String::from(server), String::from(path)))
 }
 
-fn path_from_git_url(url: &str) -> Option<(&str,&str)> {
+fn path_from_git_url(url: &str) -> Option<(&str, &str)> {
     _path_from_https_url(url).or_else(|| _path_from_ssh_url(url))
 }
 
@@ -199,7 +201,7 @@ fn _path_from_https_url(url: &str) -> Option<(&str, &str)> {
     let caps = regex_git.captures(url);
     let server = caps.as_ref()?.get(3)?.as_str();
     let path = caps.as_ref()?.get(4)?.as_str();
-    Some((server,path.trim_end_matches('/').trim_end_matches(".git")))
+    Some((server, path.trim_end_matches('/').trim_end_matches(".git")))
 }
 
 fn _path_from_ssh_url(url: &str) -> Option<(&str, &str)> {
@@ -209,7 +211,7 @@ fn _path_from_ssh_url(url: &str) -> Option<(&str, &str)> {
     let caps = regex_git.captures(url);
     let server = caps.as_ref()?.get(2)?.as_str();
     let path = caps.as_ref()?.get(3)?.as_str();
-    Some((server,path))
+    Some((server, path))
 }
 
 #[cfg(test)]
@@ -226,7 +228,7 @@ mod tests {
         // THEN
         assert!(path.is_some());
         assert_eq!(("gitlab-forge.din.developpement-durable.gouv.fr",
-            "snum/dam/gitlab/gitlab-usage"), path.unwrap());
+                    "snum/dam/gitlab/gitlab-usage"), path.unwrap());
     }
 
     #[test]
@@ -251,7 +253,7 @@ mod tests {
         let path = path_from_git_url(url);
         // THEN
         assert!(path.is_some());
-        assert_eq!(("gitlab.com","visiplus.formateur/debuter-javascript"), path.unwrap());
+        assert_eq!(("gitlab.com", "visiplus.formateur/debuter-javascript"), path.unwrap());
     }
 
     #[test]
@@ -263,6 +265,6 @@ mod tests {
         let path = path_from_git_url(url);
         // THEN
         assert!(path.is_some());
-        assert_eq!(("gitlab.com","visiplus.formateur/debuter-javascript"), path.unwrap());
+        assert_eq!(("gitlab.com", "visiplus.formateur/debuter-javascript"), path.unwrap());
     }
 }

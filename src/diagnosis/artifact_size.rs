@@ -1,21 +1,14 @@
 use chrono::{DateTime, Duration, Local};
+use gitlab::api::{Pagination, projects, Query};
 use gitlab::api::paged;
-use gitlab::api::{projects, Pagination, Query};
 use gitlab::Gitlab;
-use human_bytes::human_bytes;
 use serde::Deserialize;
 
-use crate::diagnosis::gitlab_connection::Project;
+use crate::{Reportable, ReportJob, ReportPending};
 use crate::diagnosis::{
-    warning_if, Diagnosis, Report, ReportStatus, ARTIFACT_JOBS_DAYS_LIMIT, ARTIFACT_JOBS_LIMIT,
-    ARTIFACT_JOBS_NB_LIMIT,
+    ARTIFACT_JOBS_DAYS_LIMIT, ReportStatus,
 };
-
-pub struct ArtifactSize<'a> {
-    pub gitlab: &'a Gitlab,
-    pub project: &'a Project,
-    pub report: Option<Report>,
-}
+use crate::diagnosis::gitlab_connection::{GitlabRepository, Project};
 
 #[derive(Debug, Deserialize)]
 pub struct Artifact {
@@ -23,69 +16,73 @@ pub struct Artifact {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Job {
+pub struct GitlabJob {
     pub created_at: DateTime<Local>,
     pub artifacts: Vec<Artifact>,
 }
 
-impl Diagnosis for ArtifactSize<'_> {
-    fn diagnosis(&mut self) -> &Report {
-        if self.report.is_none() {
-            self.report = Some(self.analysis_storage());
-        }
-        self.report.as_ref().unwrap()
+pub struct ArtifactSizeJob {
+    pub gitlab: Gitlab,
+    pub project: Project,
+}
+
+pub struct ArtifactReport {
+    pub gitlab_jobs: Vec<GitlabJob>,
+    pub report_status: Vec<ReportStatus>,
+}
+
+impl Reportable for ArtifactReport {
+    fn report(&self) -> Vec<ReportStatus> {
+        self.report_status.clone()
     }
 }
 
-impl<'a> ArtifactSize<'a> {
-    pub fn new(gitlab: &'a Gitlab, project: &'a Project) -> ArtifactSize<'a> {
-        ArtifactSize {
-            gitlab,
-            project,
-            report: None,
+impl ReportJob for ArtifactSizeJob {
+    type Diagnosis = ArtifactReport;
+
+    fn diagnose(self) -> ReportPending<Self::Diagnosis> {
+        ReportPending::<Self::Diagnosis> {
+            pending_msg: "Analysing Gitlab jobs...".to_string(),
+            job: {
+                std::thread::spawn(move || {
+                    if !self.project.jobs_enabled {
+                        return ArtifactReport {
+                            report_status: vec![
+                                ReportStatus::NA("No CI/CD configured on this project".to_string())],
+                            gitlab_jobs: vec![],
+                        };
+                    }
+                    let endpoint = projects::jobs::Jobs::builder()
+                        .project(self.project.id)
+                        .build()
+                        .unwrap();
+                    let jobs: Vec<GitlabJob> = paged(endpoint, Pagination::All).query(&self.gitlab).unwrap();
+                    ArtifactReport {
+                        report_status: ArtifactSizeJob::_number_jobs(&jobs),
+                        gitlab_jobs: jobs,
+                    }
+                })
+            },
+        }
+    }
+}
+
+impl ArtifactSizeJob {
+    pub fn from(gitlab: &GitlabRepository) -> ArtifactSizeJob {
+        ArtifactSizeJob {
+            gitlab: gitlab.gitlab.clone(),
+            project: gitlab.project.clone(),
         }
     }
 
-    pub fn analysis_storage(&self) -> Report {
-        let msg = format!(
-            "Artifact jobs size : {} ({} %)",
-            human_bytes(self.project.statistics.job_artifacts_size as f64),
-            100 * self.project.statistics.job_artifacts_size / self.project.statistics.storage_size
-        );
-        let status = warning_if(
-            self.project.statistics.job_artifacts_size > ARTIFACT_JOBS_LIMIT,
-            msg,
-        );
-        let jobs = self._request_jobs();
-        Report {
-            global: ReportStatus::NA("Artifact Jobs".to_string()),
-            details: vec![status.to_report(), self._number_jobs(&jobs)],
-        }
-    }
-
-    fn _request_jobs(&self) -> Vec<Job> {
-        let endpoint = projects::jobs::Jobs::builder()
-            .project(self.project.id)
-            .build()
-            .unwrap();
-        paged(endpoint, Pagination::All).query(self.gitlab).unwrap()
-    }
-
-    fn _number_jobs(&self, jobs: &Vec<Job>) -> Report {
+    fn _number_jobs(jobs: &Vec<GitlabJob>) -> Vec<ReportStatus> {
         let ref_date = Local::now() - Duration::days(ARTIFACT_JOBS_DAYS_LIMIT);
         let count_old = jobs.iter().filter(|j| j.created_at.le(&ref_date)).count();
-        Report {
-            global: warning_if(
-                jobs.len() > ARTIFACT_JOBS_NB_LIMIT,
-                format!("Number of jobs : {}", jobs.len()),
-            ),
-            details: vec![ReportStatus::NA(format!(
-                "{} jobs ({} %) are older than {} days",
-                count_old,
-                100 * count_old / jobs.len(),
-                ARTIFACT_JOBS_DAYS_LIMIT
-            ))
-            .to_report()],
-        }
+        vec![ReportStatus::NA(format!(
+            "{} jobs ({} %) are older than {} days",
+            count_old,
+            100 * count_old / jobs.len(),
+            ARTIFACT_JOBS_DAYS_LIMIT
+        ))]
     }
 }
