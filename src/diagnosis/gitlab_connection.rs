@@ -60,6 +60,7 @@ impl ReportJob for ConnectionJob {
                     })
                 })
             },
+            progress: None,
         }
     }
 }

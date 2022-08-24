@@ -1,3 +1,4 @@
+use std::sync::mpsc::Receiver;
 use std::thread::JoinHandle;
 
 pub mod artifact_size;
@@ -22,11 +23,17 @@ pub enum ReportStatus {
 pub struct ReportPending<T> {
     pub pending_msg: String,
     pub job: JoinHandle<T>,
+    pub progress: Option<Receiver<u64>>,
 }
 
 pub trait ReportJob {
     type Diagnosis: Reportable;
     fn diagnose(self) -> ReportPending<Self::Diagnosis>;
+}
+
+pub trait RemedyJob {
+    type Report: Reportable;
+    fn remedy(self) -> ReportPending<Self::Report>;
 }
 
 pub trait Reportable {

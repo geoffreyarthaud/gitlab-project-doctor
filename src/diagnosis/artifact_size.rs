@@ -30,7 +30,7 @@ pub struct ArtifactSizeJob {
 pub struct ArtifactReport {
     pub gitlab_jobs: Vec<GitlabJob>,
     pub report_status: Vec<ReportStatus>,
-    pub bytes_savable: u64
+    pub bytes_savable: u64,
 }
 
 impl Reportable for ArtifactReport {
@@ -52,7 +52,7 @@ impl ReportJob for ArtifactSizeJob {
                             report_status: vec![
                                 ReportStatus::NA("No CI/CD configured on this project".to_string())],
                             gitlab_jobs: vec![],
-                            bytes_savable: 0
+                            bytes_savable: 0,
                         };
                     }
                     let endpoint = projects::jobs::Jobs::builder()
@@ -64,10 +64,11 @@ impl ReportJob for ArtifactSizeJob {
                     ArtifactReport {
                         report_status: vec![report],
                         gitlab_jobs: jobs,
-                        bytes_savable
+                        bytes_savable,
                     }
                 })
             },
+            progress: None,
         }
     }
 }
