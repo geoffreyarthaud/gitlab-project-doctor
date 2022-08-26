@@ -1,8 +1,9 @@
 use std::sync::mpsc::Receiver;
 use std::thread::JoinHandle;
 
-pub mod artifact_size;
 pub mod gitlab_connection;
+pub mod pipeline_analysis;
+pub mod pipeline_clean;
 
 pub const STORAGE_LIMIT: u64 = 2_000_000_000;
 pub const REPO_LIMIT: u64 = 100_000_000;
@@ -11,6 +12,9 @@ pub const ARTIFACT_JOBS_NB_LIMIT: usize = 1_000;
 pub const ARTIFACT_JOBS_DAYS_LIMIT: i64 = 30;
 pub const PACKAGE_REGISTRY_LIMIT: u64 = 1_000_000_000;
 pub const DOCKER_REGISTRY_LIMIT: u64 = 5_000_000_000;
+
+pub const GITLAB_403_ERROR: &str = "403 Forbidden";
+pub const GITLAB_SCOPE_ERROR: &str = "insufficient_scope";
 
 #[derive(Clone)]
 pub enum ReportStatus {
@@ -23,7 +27,8 @@ pub enum ReportStatus {
 pub struct ReportPending<T> {
     pub pending_msg: String,
     pub job: JoinHandle<T>,
-    pub progress: Option<Receiver<u64>>,
+    pub progress: Option<Receiver<usize>>,
+    pub total: Option<usize>,
 }
 
 pub trait ReportJob {

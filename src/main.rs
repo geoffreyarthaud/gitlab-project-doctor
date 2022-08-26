@@ -1,16 +1,11 @@
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
-
-use dialoguer::Input;
-use indicatif::{ProgressBar, ProgressStyle};
 use structopt::StructOpt;
 
 use cli::Args;
 
-use crate::diagnosis::{Reportable, ReportJob, ReportPending};
-use crate::diagnosis::artifact_size::ArtifactSizeJob;
+use crate::diagnosis::{RemedyJob, Reportable, ReportJob, ReportPending};
 use crate::diagnosis::gitlab_connection::ConnectionJob;
+use crate::diagnosis::pipeline_analysis::PipelineAnalysisJob;
+use crate::diagnosis::pipeline_clean::PipelineCleanJob;
 use crate::diagnosis::ReportStatus;
 
 pub mod diagnosis;
@@ -36,7 +31,18 @@ fn main() {
     let connection_data = cli::fatal_if_none(connection.data, "Diagnosis stops here.");
 
     // Analysis of artifacts
-    let report_pending = ArtifactSizeJob::from(&connection_data).diagnose();
-    let _ = cli::display_report_pending(report_pending);
+    let report_pending = PipelineAnalysisJob::from(&connection_data).diagnose();
+    let pipeline_report = cli::display_report_pending(report_pending);
+    if !pipeline_report.pipelines.is_empty() {
+        if let Some(days) = cli::input_clean_artifacts() {
+            let report_pending = PipelineCleanJob::from(pipeline_report, days).remedy();
+            let _ = cli::display_report_pending(report_pending);
+        } else {
+            cli::console_report_statuses(
+                &[ReportStatus::WARNING("Jobs deletion cancelled".to_string())],
+                2);
+        }
+    }
+
 
 }

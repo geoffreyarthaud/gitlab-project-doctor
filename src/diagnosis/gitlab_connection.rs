@@ -61,6 +61,7 @@ impl ReportJob for ConnectionJob {
                 })
             },
             progress: None,
+            total: None
         }
     }
 }
