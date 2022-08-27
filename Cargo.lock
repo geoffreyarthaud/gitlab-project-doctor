@@ -406,6 +406,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "console",
+ "derive_builder",
  "dialoguer",
  "git2",
  "gitlab",

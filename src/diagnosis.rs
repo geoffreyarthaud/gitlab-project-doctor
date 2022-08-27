@@ -4,6 +4,7 @@ use std::thread::JoinHandle;
 pub mod gitlab_connection;
 pub mod pipeline_analysis;
 pub mod pipeline_clean;
+pub mod package_analysis;
 
 pub const STORAGE_LIMIT: u64 = 2_000_000_000;
 pub const REPO_LIMIT: u64 = 100_000_000;
