@@ -7,18 +7,15 @@
 //! Project packages API endpoints.
 //!
 //! These endpoints are used for querying Gitlab packages.
-mod packages;
-mod package;
-mod package_files;
-mod delete_file;
-
-pub use self::packages::Packages;
-pub use self::packages::PackageType;
+pub use self::delete_file::DeletePackageFile;
+pub use self::package::Package;
+pub use self::package_files::PackageFiles;
 pub use self::packages::PackageOrderBy;
 pub use self::packages::PackageStatus;
+pub use self::packages::PackageType;
+pub use self::packages::Packages;
 
-pub use self::package::Package;
-
-pub use self::package_files::PackageFiles;
-
-pub use self::delete_file::DeletePackageFile;
+mod delete_file;
+mod package;
+mod package_files;
+mod packages;

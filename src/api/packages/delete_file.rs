@@ -5,7 +5,6 @@
 // except according to those terms.
 
 use derive_builder::Builder;
-
 use gitlab::api::common::NameOrId;
 use gitlab::api::endpoint_prelude::*;
 
@@ -18,7 +17,7 @@ pub struct DeletePackageFile<'a> {
     /// The ID of the package.
     package: u64,
     /// The ID of the file.
-    file: u64
+    file: u64,
 }
 
 impl<'a> DeletePackageFile<'a> {
@@ -34,8 +33,10 @@ impl<'a> Endpoint for DeletePackageFile<'a> {
     }
 
     fn endpoint(&self) -> Cow<'static, str> {
-        format!("projects/{}/packages/{}/package_files/{}", self.project, self.package, self.file)
-            .into()
+        format!(
+            "projects/{}/packages/{}/package_files/{}",
+            self.project, self.package, self.file
+        )
+        .into()
     }
 }
-

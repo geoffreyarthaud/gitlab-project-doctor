@@ -5,7 +5,6 @@
 // except according to those terms.
 
 use derive_builder::Builder;
-
 use gitlab::api::common::NameOrId;
 use gitlab::api::endpoint_prelude::*;
 

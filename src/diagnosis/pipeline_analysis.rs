@@ -3,9 +3,9 @@ use gitlab::api::{Pagination, Query};
 use gitlab::Gitlab;
 use serde::Deserialize;
 
-use crate::{Reportable, ReportJob, ReportPending, ReportStatus};
-use crate::diagnosis::ARTIFACT_JOBS_DAYS_LIMIT;
 use crate::diagnosis::gitlab_connection::{GitlabRepository, Project};
+use crate::diagnosis::ARTIFACT_JOBS_DAYS_LIMIT;
+use crate::{ReportJob, ReportPending, ReportStatus, Reportable};
 
 #[derive(Debug, Deserialize)]
 pub struct GitlabPipeline {
@@ -32,16 +32,20 @@ impl Reportable for PipelineAnalysisReport {
 }
 
 impl PipelineAnalysisJob {
-    fn to_report(self, report_status: Vec<ReportStatus>, pipelines: Vec<GitlabPipeline>)
-        -> PipelineAnalysisReport {
+    fn to_report(
+        self,
+        report_status: Vec<ReportStatus>,
+        pipelines: Vec<GitlabPipeline>,
+    ) -> PipelineAnalysisReport {
         PipelineAnalysisReport {
             gitlab: self.gitlab,
             project: self.project,
             pipelines,
-            report_status
+            report_status,
         }
     }
 }
+
 impl ReportJob for PipelineAnalysisJob {
     type Diagnosis = PipelineAnalysisReport;
 
@@ -51,8 +55,11 @@ impl ReportJob for PipelineAnalysisJob {
             job: std::thread::spawn(move || {
                 if !self.project.jobs_enabled {
                     return self.to_report(
-                        vec![ReportStatus::NA("No CI/CD configured on this project".to_string())],
-                        vec![]);
+                        vec![ReportStatus::NA(
+                            "No CI/CD configured on this project".to_string(),
+                        )],
+                        vec![],
+                    );
                 }
 
                 let endpoint = gitlab::api::projects::pipelines::Pipelines::builder()
@@ -62,29 +69,30 @@ impl ReportJob for PipelineAnalysisJob {
                 let query: Result<Vec<GitlabPipeline>, _> =
                     gitlab::api::paged(endpoint, Pagination::All).query(&self.gitlab);
                 match query {
-                    Err(e) => {
-                        self.to_report(
-                            vec![ReportStatus::ERROR(format!("Error : {}", e.to_string()))],
-                            vec![]
-                        )
-                    }
+                    Err(e) => self.to_report(
+                        vec![ReportStatus::ERROR(format!("Error : {}", e.to_string()))],
+                        vec![],
+                    ),
                     Ok(mut pipelines) => {
                         let ref_date = Local::now() - Duration::days(ARTIFACT_JOBS_DAYS_LIMIT);
                         pipelines.sort_by(|a, b| a.created_at.partial_cmp(&b.created_at).unwrap());
                         self.to_report(
-                            vec![ReportStatus::NA(
-                                format!("{} pipelines. {} pipelines are older than {} days",
-                                    pipelines.len(),
-                                    pipelines.iter()
-                                        .position(|e| e.created_at > ref_date)
-                                        .unwrap_or(pipelines.len()),
-                                    ARTIFACT_JOBS_DAYS_LIMIT))],
-                                    pipelines)
+                            vec![ReportStatus::NA(format!(
+                                "{} pipelines. {} pipelines are older than {} days",
+                                pipelines.len(),
+                                pipelines
+                                    .iter()
+                                    .position(|e| e.created_at > ref_date)
+                                    .unwrap_or(pipelines.len()),
+                                ARTIFACT_JOBS_DAYS_LIMIT
+                            ))],
+                            pipelines,
+                        )
                     }
                 }
             }),
             progress: None,
-            total: None
+            total: None,
         }
     }
 }

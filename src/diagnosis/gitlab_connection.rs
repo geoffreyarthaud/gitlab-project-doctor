@@ -8,7 +8,10 @@ use human_bytes::human_bytes;
 use regex::Regex;
 use serde::Deserialize;
 
-use crate::diagnosis::{ARTIFACT_JOBS_LIMIT, PACKAGE_REGISTRY_LIMIT, REPO_LIMIT, Reportable, ReportJob, ReportPending, ReportStatus, STORAGE_LIMIT, warning_if};
+use crate::diagnosis::{
+    warning_if, ReportJob, ReportPending, ReportStatus, Reportable, ARTIFACT_JOBS_LIMIT,
+    PACKAGE_REGISTRY_LIMIT, REPO_LIMIT, STORAGE_LIMIT,
+};
 
 type Result<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -56,12 +59,12 @@ impl ReportJob for ConnectionJob {
                 std::thread::spawn(|| {
                     ConnectionJob::_to_report_status(match self {
                         ConnectionJob::FromUrl(url) => ConnectionJob::_from_url(&url),
-                        ConnectionJob::FromPath(path) => ConnectionJob::_from_git_path(&path)
+                        ConnectionJob::FromPath(path) => ConnectionJob::_from_git_path(&path),
                     })
                 })
             },
             progress: None,
-            total: None
+            total: None,
         }
     }
 }
@@ -76,12 +79,13 @@ impl ConnectionJob {
     fn _to_report_status(result: Result<GitlabRepository>) -> ConnectionReport {
         match result {
             Ok(gitlab) => ConnectionReport {
-                report_status: vec![ReportStatus::OK(format!("Gitlab repository : {}", gitlab
-                    .url)),
-                                    _report_global_storage(&gitlab.project),
-                                    _report_repo_storage(&gitlab.project),
-                                    _report_artifact_storage(&gitlab.project),
-                                    _report_package_storage(&gitlab.project)],
+                report_status: vec![
+                    ReportStatus::OK(format!("Gitlab repository : {}", gitlab.url)),
+                    _report_global_storage(&gitlab.project),
+                    _report_repo_storage(&gitlab.project),
+                    _report_artifact_storage(&gitlab.project),
+                    _report_package_storage(&gitlab.project),
+                ],
                 data: Some(gitlab),
             },
             Err(e) => ConnectionReport {
@@ -106,8 +110,7 @@ impl ConnectionJob {
     }
 
     fn _from_url(url: &str) -> Result<GitlabRepository> {
-        let (server, path) = path_from_git_url(url)
-            .ok_or("This URL is not a gitlab repository")?;
+        let (server, path) = path_from_git_url(url).ok_or("This URL is not a gitlab repository")?;
         let (gitlab, project) = ConnectionJob::_gitlab_project(server, path)?;
         Ok(GitlabRepository {
             url: String::from(path),
@@ -119,8 +122,8 @@ impl ConnectionJob {
 
     fn _from_git_path(path: &str) -> Result<GitlabRepository> {
         let repo = Repository::open(path).map_err(|_| "This dir is not a Git repository")?;
-        let (server, url_path) = gitlab_url(&repo)
-            .ok_or("This dir does not contain a gitlab remote")?;
+        let (server, url_path) =
+            gitlab_url(&repo).ok_or("This dir does not contain a gitlab remote")?;
         let (gitlab, project) = ConnectionJob::_gitlab_project(&server, &url_path)?;
         Ok(GitlabRepository {
             url: url_path,
@@ -137,9 +140,7 @@ fn _report_global_storage(project: &Project) -> ReportStatus {
         human_bytes(project.statistics.storage_size as f64)
     );
 
-    warning_if(
-        project.statistics.storage_size > STORAGE_LIMIT,
-        msg)
+    warning_if(project.statistics.storage_size > STORAGE_LIMIT, msg)
 }
 
 fn _report_repo_storage(project: &Project) -> ReportStatus {
@@ -149,9 +150,7 @@ fn _report_repo_storage(project: &Project) -> ReportStatus {
         100 * project.statistics.repository_size / project.statistics.storage_size
     );
 
-    warning_if(
-        project.statistics.repository_size > REPO_LIMIT,
-        msg)
+    warning_if(project.statistics.repository_size > REPO_LIMIT, msg)
 }
 
 fn _report_artifact_storage(project: &Project) -> ReportStatus {
@@ -179,7 +178,8 @@ fn _report_package_storage(project: &Project) -> ReportStatus {
 }
 
 fn gitlab_url(repo: &Repository) -> Option<(String, String)> {
-    let full_url = repo.remotes()
+    let full_url = repo
+        .remotes()
         .unwrap()
         .iter()
         .filter(|rmt_name| rmt_name.is_some())
@@ -197,9 +197,7 @@ fn path_from_git_url(url: &str) -> Option<(&str, &str)> {
 }
 
 fn _path_from_https_url(url: &str) -> Option<(&str, &str)> {
-    let regex_git =
-        Regex::new("(http(s)?://)(.+?)/(.+)(\\.git)?(/)?")
-            .unwrap();
+    let regex_git = Regex::new("(http(s)?://)(.+?)/(.+)(\\.git)?(/)?").unwrap();
     let caps = regex_git.captures(url);
     let server = caps.as_ref()?.get(3)?.as_str();
     let path = caps.as_ref()?.get(4)?.as_str();
@@ -207,9 +205,7 @@ fn _path_from_https_url(url: &str) -> Option<(&str, &str)> {
 }
 
 fn _path_from_ssh_url(url: &str) -> Option<(&str, &str)> {
-    let regex_git =
-        Regex::new("(git@)(.+?):(.+)(\\.git)(/)?")
-            .unwrap();
+    let regex_git = Regex::new("(git@)(.+?):(.+)(\\.git)(/)?").unwrap();
     let caps = regex_git.captures(url);
     let server = caps.as_ref()?.get(2)?.as_str();
     let path = caps.as_ref()?.get(3)?.as_str();
@@ -229,8 +225,13 @@ mod tests {
         let path = path_from_git_url(url);
         // THEN
         assert!(path.is_some());
-        assert_eq!(("gitlab-forge.din.developpement-durable.gouv.fr",
-                    "snum/dam/gitlab/gitlab-usage"), path.unwrap());
+        assert_eq!(
+            (
+                "gitlab-forge.din.developpement-durable.gouv.fr",
+                "snum/dam/gitlab/gitlab-usage"
+            ),
+            path.unwrap()
+        );
     }
 
     #[test]
@@ -242,31 +243,40 @@ mod tests {
         let path = path_from_git_url(url);
         // THEN
         assert!(path.is_some());
-        assert_eq!(("gitlab-forge.din.developpement-durable.gouv.fr",
-                    "snum/dam/gitlab/gitlab-usage"), path.unwrap());
+        assert_eq!(
+            (
+                "gitlab-forge.din.developpement-durable.gouv.fr",
+                "snum/dam/gitlab/gitlab-usage"
+            ),
+            path.unwrap()
+        );
     }
 
     #[test]
     fn path_from_gitlab_https_url() {
         // GIVEN
-        let url =
-            "https://gitlab.com/visiplus.formateur/debuter-javascript.git";
+        let url = "https://gitlab.com/visiplus.formateur/debuter-javascript.git";
         // WHEN
         let path = path_from_git_url(url);
         // THEN
         assert!(path.is_some());
-        assert_eq!(("gitlab.com", "visiplus.formateur/debuter-javascript"), path.unwrap());
+        assert_eq!(
+            ("gitlab.com", "visiplus.formateur/debuter-javascript"),
+            path.unwrap()
+        );
     }
 
     #[test]
     fn path_from_gitlab_ssh_url() {
         // GIVEN
-        let url =
-            "git@gitlab.com:visiplus.formateur/debuter-javascript.git";
+        let url = "git@gitlab.com:visiplus.formateur/debuter-javascript.git";
         // WHEN
         let path = path_from_git_url(url);
         // THEN
         assert!(path.is_some());
-        assert_eq!(("gitlab.com", "visiplus.formateur/debuter-javascript"), path.unwrap());
+        assert_eq!(
+            ("gitlab.com", "visiplus.formateur/debuter-javascript"),
+            path.unwrap()
+        );
     }
 }

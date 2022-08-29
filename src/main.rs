@@ -2,17 +2,17 @@ use structopt::StructOpt;
 
 use cli::Args;
 
-use crate::diagnosis::{RemedyJob, Reportable, ReportJob, ReportPending};
 use crate::diagnosis::gitlab_connection::ConnectionJob;
 use crate::diagnosis::package_analysis::PackageAnalysisJob;
 use crate::diagnosis::package_clean::PackageCleanJob;
 use crate::diagnosis::pipeline_analysis::PipelineAnalysisJob;
 use crate::diagnosis::pipeline_clean::PipelineCleanJob;
 use crate::diagnosis::ReportStatus;
+use crate::diagnosis::{RemedyJob, ReportJob, ReportPending, Reportable};
 
-pub mod diagnosis;
-pub mod cli;
 pub mod api;
+pub mod cli;
+pub mod diagnosis;
 
 fn main() {
     let args = Args::from_args();
@@ -43,7 +43,8 @@ fn main() {
         } else {
             cli::console_report_statuses(
                 &[ReportStatus::WARNING("Jobs deletion cancelled".to_string())],
-                2);
+                2,
+            );
         }
     }
 
@@ -56,8 +57,11 @@ fn main() {
             let _ = cli::display_report_pending(report_pending);
         } else {
             cli::console_report_statuses(
-                &[ReportStatus::WARNING("Files deletion cancelled".to_string())],
-                2);
+                &[ReportStatus::WARNING(
+                    "Files deletion cancelled".to_string(),
+                )],
+                2,
+            );
         }
     }
 }

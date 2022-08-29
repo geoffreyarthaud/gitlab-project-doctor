@@ -3,9 +3,9 @@ use std::sync::mpsc;
 use gitlab::api::{ApiError, Query};
 use human_bytes::human_bytes;
 
-use crate::{api, Reportable, ReportPending, ReportStatus};
-use crate::diagnosis::{GITLAB_SCOPE_ERROR, RemedyJob};
 use crate::diagnosis::package_analysis::{FileFromPackage, PackageAnalysisReport};
+use crate::diagnosis::{RemedyJob, GITLAB_SCOPE_ERROR};
+use crate::{api, ReportPending, ReportStatus, Reportable};
 
 pub struct PackageCleanJob {
     pub package_report: PackageAnalysisReport,
@@ -28,7 +28,10 @@ impl PackageCleanReport {
         Self {
             saved_bytes: 0,
             deleted_files: vec![],
-            report_status: vec![ReportStatus::ERROR(format!("Package {} - Error : {}", id, msg))],
+            report_status: vec![ReportStatus::ERROR(format!(
+                "Package {} - Error : {}",
+                id, msg
+            ))],
         }
     }
 }
@@ -54,17 +57,16 @@ impl RemedyJob for PackageCleanJob {
                             .file(file.file.id)
                             .build()
                             .unwrap();
-                        let query = gitlab::api::ignore(endpoint)
-                            .query(&self.package_report.gitlab);
+                        let query =
+                            gitlab::api::ignore(endpoint).query(&self.package_report.gitlab);
                         match query {
                             Ok(_) => {
                                 deleted_packages_files.push(file);
                                 break;
                             }
-                            Err(e) => {
-                                match e {
-                                    ApiError::Gitlab { msg } => {
-                                        return match msg.as_str() {
+                            Err(e) => match e {
+                                ApiError::Gitlab { msg } => {
+                                    return match msg.as_str() {
                                             msg if msg.contains(GITLAB_SCOPE_ERROR) => {
                                                 PackageCleanReport::fatal_error(
                                                     file.file.id,
@@ -75,23 +77,24 @@ impl RemedyJob for PackageCleanJob {
                                                     file.file.id,
                                                     other)
                                             }
-                                        }
-                                    }
-                                    ApiError::Client {source} => {
-                                        retry += 1;
-                                        if retry >= 3 {
-                                            return PackageCleanReport::fatal_error(
-                                                file.file.id,
-                                                source.to_string().as_str());
-                                        }
-                                    }
-                                    _ => {
+                                        };
+                                }
+                                ApiError::Client { source } => {
+                                    retry += 1;
+                                    if retry >= 3 {
                                         return PackageCleanReport::fatal_error(
                                             file.file.id,
-                                            e.to_string().as_str());
+                                            source.to_string().as_str(),
+                                        );
                                     }
                                 }
-                            }
+                                _ => {
+                                    return PackageCleanReport::fatal_error(
+                                        file.file.id,
+                                        e.to_string().as_str(),
+                                    );
+                                }
+                            },
                         }
                     }
                     let _ = tx.send(i);
@@ -99,9 +102,11 @@ impl RemedyJob for PackageCleanJob {
                 let saved_bytes = deleted_packages_files.iter().map(|f| f.file.size).sum();
                 PackageCleanReport {
                     saved_bytes,
-                    report_status: vec![ReportStatus::OK(format!("Deleted {} packages, {} saved.",
-                                                                 deleted_packages_files.len(),
-                                                                 human_bytes(saved_bytes as f64)))],
+                    report_status: vec![ReportStatus::OK(format!(
+                        "Deleted {} packages, {} saved.",
+                        deleted_packages_files.len(),
+                        human_bytes(saved_bytes as f64)
+                    ))],
                     deleted_files: deleted_packages_files,
                 }
             }),
@@ -113,8 +118,6 @@ impl RemedyJob for PackageCleanJob {
 
 impl PackageCleanJob {
     pub fn from(package_report: PackageAnalysisReport) -> Self {
-        Self {
-            package_report
-        }
+        Self { package_report }
     }
 }

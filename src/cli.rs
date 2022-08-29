@@ -1,13 +1,13 @@
 use std::fmt::Write;
-use std::{panic, process};
 use std::time::Duration;
+use std::{panic, process};
 
 use console::style;
 use dialoguer::{Confirm, Input};
 use indicatif::{ProgressBar, ProgressStyle};
 use structopt::StructOpt;
 
-use crate::{Reportable, ReportPending, ReportStatus};
+use crate::{ReportPending, ReportStatus, Reportable};
 
 pub fn fatal_if_none<T>(result: Option<T>, msg: &str) -> T {
     match result {
@@ -24,8 +24,9 @@ pub struct Args {
     #[structopt(name = "url", long)]
     /// Analyze the project from the URL of Gitlab repository
     pub url: Option<String>,
-    #[structopt(name = "git_path")]
-    /// Analyze the project from a local path of a Git repository
+    #[structopt(name = "git_path", required_unless = "url")]
+    /// Analyze the project from a local path of a Git repository. Ignored if url option is
+    /// specified
     pub git_path: Option<String>,
 }
 
@@ -33,27 +34,39 @@ fn console_report_status(buffer: &mut String, report_status: &ReportStatus, inde
     let width = indent + 4;
     let _ = match &report_status {
         ReportStatus::OK(msg) => {
-            writeln!(buffer, "{:>width$} {}", style("[✓]").green(), msg, width = width)
+            writeln!(
+                buffer,
+                "{:>width$} {}",
+                style("[✓]").green(),
+                msg,
+                width = width
+            )
         }
         ReportStatus::WARNING(msg) => {
-            writeln!(buffer,
-                     "{:>width$} {}",
-                     style("[!]").yellow().bold(),
-                     style(msg).yellow().bold(), width = width
+            writeln!(
+                buffer,
+                "{:>width$} {}",
+                style("[!]").yellow().bold(),
+                style(msg).yellow().bold(),
+                width = width
             )
         }
         ReportStatus::ERROR(msg) => {
-            writeln!(buffer,
-                     "{:>width$} {}",
-                     style("[✘]").red().bold(),
-                     style(msg).bold(), width = width
+            writeln!(
+                buffer,
+                "{:>width$} {}",
+                style("[✘]").red().bold(),
+                style(msg).bold(),
+                width = width
             )
         }
         ReportStatus::NA(msg) => {
-            writeln!(buffer,
-                     "{:>width$} {}",
-                     style("[-]").bold(),
-                     style(msg).bold(), width = width
+            writeln!(
+                buffer,
+                "{:>width$} {}",
+                style("[-]").bold(),
+                style(msg).bold(),
+                width = width
             )
         }
     };
@@ -75,11 +88,10 @@ pub fn console_report_statuses(report_statuses: &[ReportStatus], initial_indent:
 
 pub fn display_report_pending<T: Reportable>(report_pending: ReportPending<T>) -> T {
     let pb;
-    let initial_indent : usize;
+    let initial_indent: usize;
     if report_pending.progress.is_some() && report_pending.total.is_some() {
         initial_indent = 2;
-        let sty = ProgressStyle::with_template(
-            "{msg} {bar:40.cyan/blue} {pos:>7}/{len:7} ({eta})")
+        let sty = ProgressStyle::with_template("{msg} {bar:40.cyan/blue} {pos:>7}/{len:7} ({eta})")
             .unwrap()
             .progress_chars("#>-");
 
@@ -104,12 +116,16 @@ pub fn display_report_pending<T: Reportable>(report_pending: ReportPending<T>) -
             eprint!("\r");
             result
         }
-        Err(e) => panic::resume_unwind(e)
+        Err(e) => panic::resume_unwind(e),
     }
 }
 
 pub fn input_clean_artifacts() -> Option<i64> {
-    if Confirm::new().with_prompt("Delete old pipelines ?").interact().unwrap_or(false) {
+    if Confirm::new()
+        .with_prompt("Delete old pipelines ?")
+        .interact()
+        .unwrap_or(false)
+    {
         let input: i64 = Input::new()
             .with_prompt("From which age in days ?")
             .default("30".into())
@@ -128,5 +144,8 @@ pub fn input_clean_artifacts() -> Option<i64> {
 }
 
 pub fn input_clean_files() -> bool {
-    Confirm::new().with_prompt("Delete obsolete files ?").interact().unwrap_or(false)
+    Confirm::new()
+        .with_prompt("Delete obsolete files ?")
+        .interact()
+        .unwrap_or(false)
 }

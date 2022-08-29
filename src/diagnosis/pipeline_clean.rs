@@ -6,10 +6,10 @@ use gitlab::api::{ApiError, Query};
 use gitlab::Gitlab;
 use human_bytes::human_bytes;
 
-use crate::{Reportable, ReportPending, ReportStatus};
-use crate::diagnosis::{GITLAB_SCOPE_ERROR, RemedyJob};
 use crate::diagnosis::gitlab_connection::Project;
 use crate::diagnosis::pipeline_analysis::{GitlabPipeline, PipelineAnalysisReport};
+use crate::diagnosis::{RemedyJob, GITLAB_SCOPE_ERROR};
+use crate::{ReportPending, ReportStatus, Reportable};
 
 pub struct PipelineCleanJob {
     pub pipeline_report: PipelineAnalysisReport,
@@ -33,7 +33,10 @@ impl PipelineCleanReport {
         Self {
             saved_bytes: 0,
             deleted_pipelines: vec![],
-            report_status: vec![ReportStatus::ERROR(format!("Pipeline {} - Error : {}", id, msg))],
+            report_status: vec![ReportStatus::ERROR(format!(
+                "Pipeline {} - Error : {}",
+                id, msg
+            ))],
         }
     }
 }
@@ -44,7 +47,10 @@ impl RemedyJob for PipelineCleanJob {
     fn remedy(self) -> ReportPending<Self::Report> {
         let (tx, rx) = mpsc::channel();
         let ref_date = Local::now() - Duration::days(self.days);
-        let count = self.pipeline_report.pipelines.iter()
+        let count = self
+            .pipeline_report
+            .pipelines
+            .iter()
             .filter(|a| a.created_at <= ref_date)
             .count();
         ReportPending {
@@ -63,17 +69,16 @@ impl RemedyJob for PipelineCleanJob {
                             .pipeline(pipeline.id)
                             .build()
                             .unwrap();
-                        let query = gitlab::api::ignore(endpoint)
-                            .query(&self.pipeline_report.gitlab);
+                        let query =
+                            gitlab::api::ignore(endpoint).query(&self.pipeline_report.gitlab);
                         match query {
                             Ok(_) => {
                                 deleted_pipelines.push(pipeline);
                                 break;
                             }
-                            Err(e) => {
-                                match e {
-                                    ApiError::Gitlab { msg } => {
-                                        return match msg.as_str() {
+                            Err(e) => match e {
+                                ApiError::Gitlab { msg } => {
+                                    return match msg.as_str() {
                                             msg if msg.contains(GITLAB_SCOPE_ERROR) => {
                                                 PipelineCleanReport::fatal_error(
                                                     pipeline.id,
@@ -84,35 +89,39 @@ impl RemedyJob for PipelineCleanJob {
                                                     pipeline.id,
                                                     other)
                                             }
-                                        }
-                                    }
-                                    ApiError::Client {source} => {
-                                        retry += 1;
-                                        if retry >= 3 {
-                                            return PipelineCleanReport::fatal_error(
-                                                pipeline.id,
-                                                source.to_string().as_str());
-                                        }
-                                    }
-                                    _ => {
+                                        };
+                                }
+                                ApiError::Client { source } => {
+                                    retry += 1;
+                                    if retry >= 3 {
                                         return PipelineCleanReport::fatal_error(
                                             pipeline.id,
-                                            e.to_string().as_str());
+                                            source.to_string().as_str(),
+                                        );
                                     }
                                 }
-                            }
+                                _ => {
+                                    return PipelineCleanReport::fatal_error(
+                                        pipeline.id,
+                                        e.to_string().as_str(),
+                                    );
+                                }
+                            },
                         }
                     }
                     let _ = tx.send(i);
                 }
                 let saved_bytes = PipelineCleanJob::_compute_saved_bytes(
                     &self.pipeline_report.gitlab,
-                    &self.pipeline_report.project);
+                    &self.pipeline_report.project,
+                );
                 PipelineCleanReport {
                     saved_bytes,
-                    report_status: vec![ReportStatus::OK(format!("Deleted {} pipelines, {} saved.",
-                                                                 deleted_pipelines.len(),
-                                                                 human_bytes(saved_bytes as f64)))],
+                    report_status: vec![ReportStatus::OK(format!(
+                        "Deleted {} pipelines, {} saved.",
+                        deleted_pipelines.len(),
+                        human_bytes(saved_bytes as f64)
+                    ))],
                     deleted_pipelines,
                 }
             }),
@@ -129,7 +138,7 @@ impl PipelineCleanJob {
         }
         Self {
             pipeline_report,
-            days
+            days,
         }
     }
 
@@ -141,7 +150,8 @@ impl PipelineCleanJob {
             .build()
             .unwrap();
 
-        let new_size = endpoint.query(gitlab)
+        let new_size = endpoint
+            .query(gitlab)
             .map(|p: Project| p.statistics.job_artifacts_size)
             .unwrap_or(old_size);
         max(0, old_size - new_size)

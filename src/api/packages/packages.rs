@@ -75,7 +75,7 @@ impl PackageType {
             PackageType::Nuget => "nuget",
             PackageType::Helm => "helm",
             PackageType::TerraformModule => "terraform_module",
-            PackageType::Golang => "golang"
+            PackageType::Golang => "golang",
         }
     }
 }
@@ -98,7 +98,7 @@ pub enum PackageStatus {
     /// The status of a package in error
     Error,
     /// The status of a pending package for destruction
-    PendingDestruction
+    PendingDestruction,
 }
 
 impl PackageStatus {
@@ -109,7 +109,7 @@ impl PackageStatus {
             PackageStatus::Hidden => "hidden",
             PackageStatus::Processing => "processing",
             PackageStatus::Error => "error",
-            PackageStatus::PendingDestruction => "pending_destruction"
+            PackageStatus::PendingDestruction => "pending_destruction",
         }
     }
 }
@@ -180,4 +180,3 @@ impl<'a> Endpoint for Packages<'a> {
 }
 
 impl<'a> Pageable for Packages<'a> {}
-

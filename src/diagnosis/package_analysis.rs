@@ -6,9 +6,9 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
 
-use crate::{Reportable, ReportJob, ReportPending, ReportStatus};
 use crate::api::packages::{PackageFiles, Packages};
 use crate::diagnosis::gitlab_connection::{GitlabRepository, Project};
+use crate::{ReportJob, ReportPending, ReportStatus, Reportable};
 
 #[derive(Debug, Deserialize)]
 pub struct GitlabPackage {
@@ -34,14 +34,14 @@ pub struct PackageWithFile {
 
 pub struct FileFromPackage {
     pub package_id: u64,
-    pub file: GitlabPackageFile
+    pub file: GitlabPackageFile,
 }
 
 impl FileFromPackage {
     pub fn build(package: &GitlabPackage, file: GitlabPackageFile) -> FileFromPackage {
         FileFromPackage {
             package_id: package.id,
-            file
+            file,
         }
     }
 }
@@ -89,8 +89,9 @@ impl ReportJob for PackageAnalysisJob {
             pending_msg: "Analysis of packages...".to_string(),
             job: std::thread::spawn(move || {
                 if !self.project.jobs_enabled {
-                    return self.default_report(
-                        ReportStatus::NA("No CI/CD configured on this project".to_string()));
+                    return self.default_report(ReportStatus::NA(
+                        "No CI/CD configured on this project".to_string(),
+                    ));
                 }
 
                 let endpoint = Packages::builder()
@@ -100,10 +101,8 @@ impl ReportJob for PackageAnalysisJob {
                 let query: Result<Vec<GitlabPackage>, _> =
                     gitlab::api::paged(endpoint, Pagination::All).query(&self.gitlab);
                 match query {
-                    Err(e) => {
-                        self.default_report(
-                            ReportStatus::ERROR(format!("Error : {}", e.to_string())))
-                    }
+                    Err(e) => self
+                        .default_report(ReportStatus::ERROR(format!("Error : {}", e.to_string()))),
                     Ok(mut packages) => {
                         packages.sort_by(|a, b| b.created_at.partial_cmp(&a.created_at).unwrap());
                         let mut savable_bytes = 0;
@@ -124,13 +123,12 @@ impl ReportJob for PackageAnalysisJob {
                             let obsolete_ids = detect_obsolete_files(&package, &files);
 
                             savable_files += obsolete_ids.len();
-                            obsolete_ids.iter()
-                                .for_each(|i| obsolete_files.push(
-                                    FileFromPackage::build(&package, files[*i].clone())));
-                            savable_bytes += obsolete_ids.into_iter()
-                                .map(|i| files[i].size)
-                                .sum::<u64>();
-
+                            obsolete_ids.iter().for_each(|i| {
+                                obsolete_files
+                                    .push(FileFromPackage::build(&package, files[*i].clone()))
+                            });
+                            savable_bytes +=
+                                obsolete_ids.into_iter().map(|i| files[i].size).sum::<u64>();
 
                             packages_with_files.push(PackageWithFile {
                                 package,
@@ -140,15 +138,16 @@ impl ReportJob for PackageAnalysisJob {
                         PackageAnalysisReport {
                             gitlab: self.gitlab,
                             project: self.project,
-                            report_status: vec![ReportStatus::NA(
-                                format!("{} packages. {} files are duplicated ({})",
-                                        packages_with_files.len(),
-                                        savable_files,
-                                        human_bytes(savable_bytes as f64)))],
+                            report_status: vec![ReportStatus::NA(format!(
+                                "{} packages. {} files are duplicated ({})",
+                                packages_with_files.len(),
+                                savable_files,
+                                human_bytes(savable_bytes as f64)
+                            ))],
                             packages: packages_with_files,
                             savable_files,
                             savable_bytes,
-                            obsolete_files
+                            obsolete_files,
                         }
                     }
                 }
@@ -170,8 +169,10 @@ impl PackageAnalysisJob {
 
 impl PackageAnalysisReport {}
 
-fn detect_obsolete_files(package: &GitlabPackage,
-                         sorted_files: &[GitlabPackageFile]) -> Vec<usize> {
+fn detect_obsolete_files(
+    package: &GitlabPackage,
+    sorted_files: &[GitlabPackageFile],
+) -> Vec<usize> {
     let mut ids = vec![];
     let slash_idx = package.name.rfind('/').map(|i| i + 1).unwrap_or(0);
     let package_name = &package.name[slash_idx..];
@@ -216,32 +217,38 @@ mod tests {
             package_type: "".to_string(),
             created_at: Local::now() - Duration::days(30),
         };
-        let files = vec![GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(4),
-            file_name: "abc.txt".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 54,
-            created_at: Local::now() - Duration::days(5),
-            file_name: "abc.txt".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(6),
-            file_name: "zyx.txt".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-             id: 56,
-             created_at: Local::now() - Duration::days(7),
-             file_name: "abc.txt".to_string(),
-             size: 13,
-        }, GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(8),
-            file_name: "zyx.txt".to_string(),
-            size: 13,
-            }];
+        let files = vec![
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(4),
+                file_name: "abc.txt".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 54,
+                created_at: Local::now() - Duration::days(5),
+                file_name: "abc.txt".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(6),
+                file_name: "zyx.txt".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 56,
+                created_at: Local::now() - Duration::days(7),
+                file_name: "abc.txt".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(8),
+                file_name: "zyx.txt".to_string(),
+                size: 13,
+            },
+        ];
 
         // WHEN
         let ids = detect_obsolete_files(&package, &files);
@@ -277,37 +284,44 @@ mod tests {
             package_type: "maven".to_string(),
             created_at: Local::now() - Duration::days(30),
         };
-        let files = vec![GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(4),
-            file_name: "my-app-1.5-20181107.152550-1.jar".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 54,
-            created_at: Local::now() - Duration::days(4),
-            file_name: "my-app-1.5-20181107.152550-1.pom".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(4),
-            file_name: "maven-metadata.xml".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(5),
-            file_name: "my-app-1.5-20181007.142550-1.jar".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 54,
-            created_at: Local::now() - Duration::days(5),
-            file_name: "my-app-1.5-20181007.142550-1.pom".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(5),
-            file_name: "maven-metadata.xml".to_string(),
-            size: 13,
-        }, ];
+        let files = vec![
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(4),
+                file_name: "my-app-1.5-20181107.152550-1.jar".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 54,
+                created_at: Local::now() - Duration::days(4),
+                file_name: "my-app-1.5-20181107.152550-1.pom".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(4),
+                file_name: "maven-metadata.xml".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(5),
+                file_name: "my-app-1.5-20181007.142550-1.jar".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 54,
+                created_at: Local::now() - Duration::days(5),
+                file_name: "my-app-1.5-20181007.142550-1.pom".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(5),
+                file_name: "maven-metadata.xml".to_string(),
+                size: 13,
+            },
+        ];
 
         // WHEN
         let ids = detect_obsolete_files(&package, &files);
@@ -325,37 +339,44 @@ mod tests {
             package_type: "generic".to_string(),
             created_at: Local::now() - Duration::days(30),
         };
-        let files = vec![GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(4),
-            file_name: "my-app-1.5-20181107.152550-1.jar".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 54,
-            created_at: Local::now() - Duration::days(4),
-            file_name: "my-app-1.5-20181107.152550-1.pom".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(4),
-            file_name: "maven-metadata.xml".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(5),
-            file_name: "my-app-1.5-20181007.142550-1.jar".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 54,
-            created_at: Local::now() - Duration::days(5),
-            file_name: "my-app-1.5-20181007.142550-1.pom".to_string(),
-            size: 13,
-        }, GitlabPackageFile {
-            id: 50,
-            created_at: Local::now() - Duration::days(5),
-            file_name: "maven-metadata.xml".to_string(),
-            size: 13,
-        }, ];
+        let files = vec![
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(4),
+                file_name: "my-app-1.5-20181107.152550-1.jar".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 54,
+                created_at: Local::now() - Duration::days(4),
+                file_name: "my-app-1.5-20181107.152550-1.pom".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(4),
+                file_name: "maven-metadata.xml".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(5),
+                file_name: "my-app-1.5-20181007.142550-1.jar".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 54,
+                created_at: Local::now() - Duration::days(5),
+                file_name: "my-app-1.5-20181007.142550-1.pom".to_string(),
+                size: 13,
+            },
+            GitlabPackageFile {
+                id: 50,
+                created_at: Local::now() - Duration::days(5),
+                file_name: "maven-metadata.xml".to_string(),
+                size: 13,
+            },
+        ];
 
         // WHEN
         let ids = detect_obsolete_files(&package, &files);
