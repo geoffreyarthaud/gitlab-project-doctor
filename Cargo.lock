@@ -412,6 +412,7 @@ dependencies = [
  "gitlab",
  "human_bytes",
  "indicatif",
+ "lazy_static",
  "regex",
  "serde",
  "structopt",

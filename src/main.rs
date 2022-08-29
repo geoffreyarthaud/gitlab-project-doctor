@@ -48,5 +48,6 @@ fn main() {
 
     // Analysis of packages
     let report_pending = PackageAnalysisJob::from(&connection_data).diagnose();
-    let _ = cli::display_report_pending(report_pending);
+    let report = cli::display_report_pending(report_pending);
+    eprintln!("{:?}", report.obsolete_files);
 }
