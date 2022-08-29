@@ -39,7 +39,6 @@ fn main() {
         if let Some(days) = cli::input_clean_artifacts() {
             let report_pending = PipelineCleanJob::from(pipeline_report, days).remedy();
             let _ = cli::display_report_pending(report_pending);
-
         } else {
             cli::console_report_statuses(
                 &[ReportStatus::WARNING("Jobs deletion cancelled".to_string())],
@@ -49,10 +48,5 @@ fn main() {
 
     // Analysis of packages
     let report_pending = PackageAnalysisJob::from(&connection_data).diagnose();
-    let package_report = cli::display_report_pending(report_pending);
-
-    eprintln!("{:?}", package_report.packages);
-
-
-
+    let _ = cli::display_report_pending(report_pending);
 }
