@@ -126,3 +126,7 @@ pub fn input_clean_artifacts() -> Option<i64> {
         None
     }
 }
+
+pub fn input_clean_files() -> bool {
+    Confirm::new().with_prompt("Delete obsolete files ?").interact().unwrap_or(false)
+}

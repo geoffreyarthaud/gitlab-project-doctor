@@ -5,6 +5,7 @@ use cli::Args;
 use crate::diagnosis::{RemedyJob, Reportable, ReportJob, ReportPending};
 use crate::diagnosis::gitlab_connection::ConnectionJob;
 use crate::diagnosis::package_analysis::PackageAnalysisJob;
+use crate::diagnosis::package_clean::PackageCleanJob;
 use crate::diagnosis::pipeline_analysis::PipelineAnalysisJob;
 use crate::diagnosis::pipeline_clean::PipelineCleanJob;
 use crate::diagnosis::ReportStatus;
@@ -48,6 +49,15 @@ fn main() {
 
     // Analysis of packages
     let report_pending = PackageAnalysisJob::from(&connection_data).diagnose();
-    let report = cli::display_report_pending(report_pending);
-    eprintln!("{:?}", report.obsolete_files);
+    let package_report = cli::display_report_pending(report_pending);
+    if !package_report.obsolete_files.is_empty() {
+        if cli::input_clean_files() {
+            let report_pending = PackageCleanJob::from(package_report).remedy();
+            let _ = cli::display_report_pending(report_pending);
+        } else {
+            cli::console_report_statuses(
+                &[ReportStatus::WARNING("Files deletion cancelled".to_string())],
+                2);
+        }
+    }
 }

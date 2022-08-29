@@ -32,6 +32,20 @@ pub struct PackageWithFile {
     pub sorted_files: Vec<GitlabPackageFile>,
 }
 
+pub struct FileFromPackage {
+    pub package_id: u64,
+    pub file: GitlabPackageFile
+}
+
+impl FileFromPackage {
+    pub fn build(package: &GitlabPackage, file: GitlabPackageFile) -> FileFromPackage {
+        FileFromPackage {
+            package_id: package.id,
+            file
+        }
+    }
+}
+
 pub struct PackageAnalysisJob {
     pub gitlab: Gitlab,
     pub project: Project,
@@ -42,7 +56,7 @@ pub struct PackageAnalysisReport {
     pub project: Project,
     pub packages: Vec<PackageWithFile>,
     pub report_status: Vec<ReportStatus>,
-    pub obsolete_files: Vec<GitlabPackageFile>,
+    pub obsolete_files: Vec<FileFromPackage>,
     pub savable_files: usize,
     pub savable_bytes: u64,
 }
@@ -110,7 +124,9 @@ impl ReportJob for PackageAnalysisJob {
                             let obsolete_ids = detect_obsolete_files(&package, &files);
 
                             savable_files += obsolete_ids.len();
-                            obsolete_ids.iter().for_each(|i| obsolete_files.push(files[*i].clone()));
+                            obsolete_ids.iter()
+                                .for_each(|i| obsolete_files.push(
+                                    FileFromPackage::build(&package, files[*i].clone())));
                             savable_bytes += obsolete_ids.into_iter()
                                 .map(|i| files[i].size)
                                 .sum::<u64>();
