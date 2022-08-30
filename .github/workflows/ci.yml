@@ -40,9 +40,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      - name: Install OpenSSL for windows
+      - name: Install OpenSSL
         if: matrix.os == 'windows-2019'
-        run: choco install openssl
+        run: |
+          choco install openssl
+          echo ("OPENSSL_DIR=C:\Program Files\OpenSSL-Win64") >> $env:GITHUB_ENV
       - name: Install Rust
         uses: dtolnay/rust-toolchain@v1
         with:
