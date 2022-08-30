@@ -19,7 +19,7 @@ jobs:
           - beta
           - nightly
           - macos
-          - windows-gnu
+          - windows
         include:
           - build: stable
             os: ubuntu-20.04
@@ -33,14 +33,16 @@ jobs:
           - build: macos
             os: macos-latest
             rust: nightly
-          - build: windows-gnu
+          - build: windows
             os: windows-2019
-            rust: nightly-x86_64-gnu
+            rust: nightly
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
+      - name: Install OpenSSL for windows
+        if: matrix.os == 'windows-2019'
+        run: choco install openssl
       - name: Install Rust
         uses: dtolnay/rust-toolchain@v1
         with:
