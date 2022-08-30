@@ -19,7 +19,7 @@ jobs:
           - beta
           - nightly
           - macos
-          - win-msvc
+          - windows-gnu
         include:
           - build: stable
             os: ubuntu-20.04
@@ -33,9 +33,9 @@ jobs:
           - build: macos
             os: macos-latest
             rust: nightly
-          - build: win-msvc
+          - build: windows-gnu
             os: windows-2019
-            rust: nightly
+            rust: nightly-x86_64-gnu
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
