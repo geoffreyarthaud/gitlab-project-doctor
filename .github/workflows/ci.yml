@@ -15,16 +15,12 @@ jobs:
     strategy:
       matrix:
         build:
-          - pinned
           - stable
           - beta
           - nightly
           - macos
           - win-msvc
         include:
-          - build: pinned
-            os: ubuntu-20.04
-            rust: 1.52.1
           - build: stable
             os: ubuntu-20.04
             rust: stable
