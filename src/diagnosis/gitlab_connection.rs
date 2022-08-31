@@ -96,9 +96,7 @@ impl ConnectionJob {
         }
     }
     fn _gitlab_project(server: &str, path: &str) -> Result<(Gitlab, Project)> {
-        let token = env::var("GL_TOKEN").map_err(|_| {
-            "GL_TOKEN environment variable must contain a valid Gitlab private token"
-        })?;
+        let token = env::var("GL_TOKEN").map_err(|_| fl!("error-gl-token"))?;
         let client = Gitlab::new(server, token)?;
         let endpoint = projects::Project::builder()
             .project(path)
@@ -111,7 +109,7 @@ impl ConnectionJob {
     }
 
     fn _from_url(url: &str) -> Result<GitlabRepository> {
-        let (server, path) = path_from_git_url(url).ok_or("This URL is not a gitlab repository")?;
+        let (server, path) = path_from_git_url(url).ok_or_else(|| fl!("error-not-gitlab-repo"))?;
         let (gitlab, project) = ConnectionJob::_gitlab_project(server, path)?;
         Ok(GitlabRepository {
             url: String::from(path),
@@ -122,9 +120,8 @@ impl ConnectionJob {
     }
 
     fn _from_git_path(path: &str) -> Result<GitlabRepository> {
-        let repo = Repository::open(path).map_err(|_| "This dir is not a Git repository")?;
-        let (server, url_path) =
-            gitlab_url(&repo).ok_or("This dir does not contain a gitlab remote")?;
+        let repo = Repository::open(path).map_err(|_| fl!("error-not-git-repo"))?;
+        let (server, url_path) = gitlab_url(&repo).ok_or_else(|| fl!("error-no-gitlab-remote"))?;
         let (gitlab, project) = ConnectionJob::_gitlab_project(&server, &url_path)?;
         Ok(GitlabRepository {
             url: url_path,
@@ -137,7 +134,8 @@ impl ConnectionJob {
 
 fn _report_global_storage(project: &Project) -> ReportStatus {
     let msg = format!(
-        "Storage size : {}",
+        "{} {}",
+        fl!("size-storage"),
         human_bytes(project.statistics.storage_size as f64)
     );
 
@@ -146,7 +144,8 @@ fn _report_global_storage(project: &Project) -> ReportStatus {
 
 fn _report_repo_storage(project: &Project) -> ReportStatus {
     let msg = format!(
-        "Git repository size : {} ({} %)",
+        "{} {} ({} %)",
+        fl!("size-git-repo"),
         human_bytes(project.statistics.repository_size as f64),
         100 * project.statistics.repository_size / project.statistics.storage_size
     );
@@ -156,7 +155,8 @@ fn _report_repo_storage(project: &Project) -> ReportStatus {
 
 fn _report_artifact_storage(project: &Project) -> ReportStatus {
     let msg = format!(
-        "Artifact jobs size : {} ({} %)",
+        "{} {} ({} %)",
+        fl!("size-artifacts"),
         human_bytes(project.statistics.job_artifacts_size as f64),
         100 * project.statistics.job_artifacts_size / project.statistics.storage_size
     );
@@ -168,7 +168,8 @@ fn _report_artifact_storage(project: &Project) -> ReportStatus {
 
 fn _report_package_storage(project: &Project) -> ReportStatus {
     let msg = format!(
-        "Package registry size : {} ({} %)",
+        "{} {} ({} %)",
+        fl!("size-packages"),
         human_bytes(project.statistics.packages_size as f64),
         100 * project.statistics.packages_size / project.statistics.storage_size
     );
