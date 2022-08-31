@@ -49,14 +49,16 @@
 
 ## About The Project
 
-Gitlab is a CLI tool to clean up Gitlab repositories, especially (for now) :
+Gitlab Project doctor is a CLI tool to clean up Gitlab repositories,
+especially (for now) :
 
 - Old pipelines (with jobs and jobs artifacts)
 - Obsolete packages from package registry
 
-has first class support on Windows, macOS and Linux, with binary downloads
+It has first class support on Windows, macOS and Linux, with binary downloads
 available
 for [every release](https://github.com/geoffreyarthaud/gitlab-project-doctor/releases)
+.
 
 ![Product Name Screen Shot][product-screenshot]
 
