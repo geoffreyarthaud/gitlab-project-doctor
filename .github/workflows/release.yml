@@ -1,0 +1,121 @@
+# The create-release job runs purely to initialize the GitHub release itself
+# and to output upload_url for the following job.
+#
+# The build-release job runs only once create-release is finished. It gets the
+# release upload URL from create-release job outputs, then builds the release
+# executables for each supported platform and attaches them as release assets
+# to the previously created release.
+#
+# The key here is that we create the release only once.
+#
+# Reference:
+# https://eugene-babichenko.github.io/blog/2020/05/09/github-actions-cross-platform-auto-releases/
+
+name: release
+on:
+  push:
+    branches: # DEBUG
+      - dev/infra
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+jobs:
+  create-release:
+    name: create-release
+    runs-on: ubuntu-latest
+    env:
+      GFD_VERSION: TEST-0.0.0 # DEBUG
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      gfd_version: ${{ env.GFD_VERSION }}
+    steps:
+      - name: Get the release version from the tag
+        shell: bash
+        if: env.GFD_VERSION == ''
+        run: |
+          # See: https://github.community/t5/GitHub-Actions/How-to-get-just-the-tag-name/m-p/32167/highlight/true#M1027
+          echo "GFD_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "version is: ${{ env.GFD_VERSION }}"
+      - name: Create GitHub release
+        id: release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.GFD_VERSION }}
+          release_name: ${{ env.GFD_VERSION }}
+
+  build-release:
+    name: build-release
+    needs: [ 'create-release' ]
+    runs-on: ${{ matrix.os }}
+    env:
+      # Emit backtraces on panics.
+      RUST_BACKTRACE: 1
+    strategy:
+      matrix:
+        build: [ linux, macos, windows ]
+        include:
+          - build: linux
+            os: ubuntu-20.04
+            rust: nightly
+          - build: macos
+            os: macos-latest
+            rust: nightly
+          - build: windows
+            os: windows-2019
+            rust: nightly
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Install OpenSSL
+        if: matrix.os == 'windows-2019'
+        run: |
+          choco install openssl
+          echo ("OPENSSL_DIR=C:\Program Files\OpenSSL-Win64") >> $env:GITHUB_ENV
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Show target env variables
+        run: |
+          echo "target flag is: ${{ env.TARGET_FLAGS }}"
+          echo "target dir is: ${{ env.TARGET_DIR }}"
+
+      - name: Build release binary
+        run: cargo build --verbose --release
+
+      - name: Strip release binary (linux and macos)
+        if: matrix.build == 'linux' || matrix.build == 'macos'
+        run: strip "target/release/gitlab-project-doctor"
+
+      - name: Build archive
+        shell: bash
+        run: |
+          staging="gitlab-forge-doctor-${{ needs.create-release.outputs.gfd_version }}-${{ matrix.build }}"
+          mkdir -p "$staging"/{complete,doc}
+          
+          cp {README.md,LICENSE} "$staging/"
+          
+          if [ "${{ matrix.os }}" = "windows-2019" ]; then
+            cp "target/release/gitlab-project-doctor.exe" "$staging/"
+            7z a "$staging.zip" "$staging"
+            echo "ASSET=$staging.zip" >> $GITHUB_ENV
+          else
+            cp "target/release/gitlab-project-doctor" "$staging/"
+            tar czf "$staging.tar.gz" "$staging"
+            echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+          fi
+
+      - name: Upload release archive
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream
