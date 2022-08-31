@@ -47,6 +47,7 @@ macro_rules! fl {
 // --- End of code boilerplate to load i18n resources
 
 fn main() {
+    eprintln!("Gitlab Project Doctor v{}", env!("CARGO_PKG_VERSION"));
     let args = Args::from_args();
 
     let connection_job = {
