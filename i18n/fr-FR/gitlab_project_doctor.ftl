@@ -19,3 +19,6 @@ pipeline-analysing = Analyse des pipelines
 pipeline-report = {$total_pipelines} pipelines. {$old_pipelines} pipelines datent de plus de {$nb_days} jours
 pipeline-deleting = Suppression des anciens pipelines
 pipeline-clean-report = {$nb_pipelines} pipelines supprimés, {$size} économisés.
+ask-delete-pipelines = Supprimer anciens pipelines ?
+ask-delete-files = Supprimer fichiers obsolètes ?
+ask-age-days = Datant de plus de combien de jours ?
