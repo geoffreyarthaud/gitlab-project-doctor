@@ -5,7 +5,7 @@ use human_bytes::human_bytes;
 
 use crate::diagnosis::package_analysis::{FileFromPackage, PackageAnalysisReport};
 use crate::diagnosis::{RemedyJob, GITLAB_SCOPE_ERROR};
-use crate::{api, ReportPending, ReportStatus, Reportable};
+use crate::{api, fl, ReportPending, ReportStatus, Reportable};
 
 pub struct PackageCleanJob {
     pub package_report: PackageAnalysisReport,
@@ -29,8 +29,10 @@ impl PackageCleanReport {
             saved_bytes: 0,
             deleted_files: vec![],
             report_status: vec![ReportStatus::ERROR(format!(
-                "Package {} - Error : {}",
-                id, msg
+                "Package {} - {} {}",
+                id,
+                fl!("error"),
+                msg
             ))],
         }
     }
@@ -44,7 +46,7 @@ impl RemedyJob for PackageCleanJob {
         let count = self.package_report.obsolete_files.len();
 
         ReportPending {
-            pending_msg: "Deleting obsolete packages files".to_string(),
+            pending_msg: fl!("package-deleting"),
             job: std::thread::spawn(move || {
                 let mut deleted_packages_files = vec![];
 
@@ -67,17 +69,16 @@ impl RemedyJob for PackageCleanJob {
                             Err(e) => match e {
                                 ApiError::Gitlab { msg } => {
                                     return match msg.as_str() {
-                                            msg if msg.contains(GITLAB_SCOPE_ERROR) => {
-                                                PackageCleanReport::fatal_error(
-                                                    file.file.id,
-                                                    "Your token has insufficient privileges to delete packages")
-                                            }
-                                            other => {
-                                                PackageCleanReport::fatal_error(
-                                                    file.file.id,
-                                                    other)
-                                            }
-                                        };
+                                        msg if msg.contains(GITLAB_SCOPE_ERROR) => {
+                                            PackageCleanReport::fatal_error(
+                                                file.file.id,
+                                                &fl!("error-insufficient-privileges"),
+                                            )
+                                        }
+                                        other => {
+                                            PackageCleanReport::fatal_error(file.file.id, other)
+                                        }
+                                    };
                                 }
                                 ApiError::Client { source } => {
                                     retry += 1;
@@ -102,10 +103,10 @@ impl RemedyJob for PackageCleanJob {
                 let saved_bytes = deleted_packages_files.iter().map(|f| f.file.size).sum();
                 PackageCleanReport {
                     saved_bytes,
-                    report_status: vec![ReportStatus::OK(format!(
-                        "Deleted {} packages, {} saved.",
-                        deleted_packages_files.len(),
-                        human_bytes(saved_bytes as f64)
+                    report_status: vec![ReportStatus::OK(fl!(
+                        "package-clean-report",
+                        nb_packages = deleted_packages_files.len(),
+                        size = human_bytes(saved_bytes as f64)
                     ))],
                     deleted_files: deleted_packages_files,
                 }

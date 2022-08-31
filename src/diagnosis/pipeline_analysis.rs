@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::diagnosis::gitlab_connection::{GitlabRepository, Project};
 use crate::diagnosis::ARTIFACT_JOBS_DAYS_LIMIT;
-use crate::{ReportJob, ReportPending, ReportStatus, Reportable};
+use crate::{fl, ReportJob, ReportPending, ReportStatus, Reportable};
 
 #[derive(Debug, Deserialize)]
 pub struct GitlabPipeline {
@@ -51,15 +51,10 @@ impl ReportJob for PipelineAnalysisJob {
 
     fn diagnose(self) -> ReportPending<Self::Diagnosis> {
         ReportPending::<Self::Diagnosis> {
-            pending_msg: "Analysis of pipelines...".to_string(),
+            pending_msg: fl!("pipeline-analysing"),
             job: std::thread::spawn(move || {
                 if !self.project.jobs_enabled {
-                    return self.to_report(
-                        vec![ReportStatus::NA(
-                            "No CI/CD configured on this project".to_string(),
-                        )],
-                        vec![],
-                    );
+                    return self.to_report(vec![ReportStatus::NA(fl!("no-cicd"))], vec![]);
                 }
 
                 let endpoint = gitlab::api::projects::pipelines::Pipelines::builder()
@@ -70,21 +65,25 @@ impl ReportJob for PipelineAnalysisJob {
                     gitlab::api::paged(endpoint, Pagination::All).query(&self.gitlab);
                 match query {
                     Err(e) => self.to_report(
-                        vec![ReportStatus::ERROR(format!("Error : {}", e.to_string()))],
+                        vec![ReportStatus::ERROR(format!(
+                            "{} {}",
+                            fl!("error"),
+                            e.to_string()
+                        ))],
                         vec![],
                     ),
                     Ok(mut pipelines) => {
                         let ref_date = Local::now() - Duration::days(ARTIFACT_JOBS_DAYS_LIMIT);
                         pipelines.sort_by(|a, b| a.created_at.partial_cmp(&b.created_at).unwrap());
                         self.to_report(
-                            vec![ReportStatus::NA(format!(
-                                "{} pipelines. {} pipelines are older than {} days",
-                                pipelines.len(),
-                                pipelines
+                            vec![ReportStatus::NA(fl!(
+                                "pipeline-report",
+                                total_pipelines = pipelines.len(),
+                                old_pipelines = pipelines
                                     .iter()
                                     .position(|e| e.created_at > ref_date)
                                     .unwrap_or(pipelines.len()),
-                                ARTIFACT_JOBS_DAYS_LIMIT
+                                nb_days = ARTIFACT_JOBS_DAYS_LIMIT
                             ))],
                             pipelines,
                         )

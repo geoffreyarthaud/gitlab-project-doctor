@@ -7,7 +7,7 @@ use dialoguer::{Confirm, Input};
 use indicatif::{ProgressBar, ProgressStyle};
 use structopt::StructOpt;
 
-use crate::{ReportPending, ReportStatus, Reportable};
+use crate::{fl, ReportPending, ReportStatus, Reportable};
 
 pub fn fatal_if_none<T>(result: Option<T>, msg: &str) -> T {
     match result {
@@ -122,12 +122,12 @@ pub fn display_report_pending<T: Reportable>(report_pending: ReportPending<T>) -
 
 pub fn input_clean_artifacts() -> Option<i64> {
     if Confirm::new()
-        .with_prompt("Delete old pipelines ?")
+        .with_prompt(fl!("ask-delete-pipelines"))
         .interact()
         .unwrap_or(false)
     {
         let input: i64 = Input::new()
-            .with_prompt("From which age in days ?")
+            .with_prompt(fl!("ask-age-days"))
             .default("30".into())
             .interact_text()
             .unwrap_or_else(|_| "0".to_string())
@@ -145,7 +145,7 @@ pub fn input_clean_artifacts() -> Option<i64> {
 
 pub fn input_clean_files() -> bool {
     Confirm::new()
-        .with_prompt("Delete obsolete files ?")
+        .with_prompt(fl!("ask-delete-files"))
         .interact()
         .unwrap_or(false)
 }

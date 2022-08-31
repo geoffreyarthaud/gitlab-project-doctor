@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use crate::api::packages::{PackageFiles, Packages};
 use crate::diagnosis::gitlab_connection::{GitlabRepository, Project};
-use crate::{ReportJob, ReportPending, ReportStatus, Reportable};
+use crate::{fl, ReportJob, ReportPending, ReportStatus, Reportable};
 
 #[derive(Debug, Deserialize)]
 pub struct GitlabPackage {
@@ -86,12 +86,10 @@ impl ReportJob for PackageAnalysisJob {
 
     fn diagnose(self) -> ReportPending<Self::Diagnosis> {
         ReportPending::<Self::Diagnosis> {
-            pending_msg: "Analysis of packages...".to_string(),
+            pending_msg: fl!("package-analysing"),
             job: std::thread::spawn(move || {
                 if !self.project.jobs_enabled {
-                    return self.default_report(ReportStatus::NA(
-                        "No CI/CD configured on this project".to_string(),
-                    ));
+                    return self.default_report(ReportStatus::NA(fl!("no-cicd")));
                 }
 
                 let endpoint = Packages::builder()
@@ -101,8 +99,11 @@ impl ReportJob for PackageAnalysisJob {
                 let query: Result<Vec<GitlabPackage>, _> =
                     gitlab::api::paged(endpoint, Pagination::All).query(&self.gitlab);
                 match query {
-                    Err(e) => self
-                        .default_report(ReportStatus::ERROR(format!("Error : {}", e.to_string()))),
+                    Err(e) => self.default_report(ReportStatus::ERROR(format!(
+                        "{} {}",
+                        fl!("error"),
+                        e.to_string()
+                    ))),
                     Ok(mut packages) => {
                         packages.sort_by(|a, b| b.created_at.partial_cmp(&a.created_at).unwrap());
                         let mut savable_bytes = 0;
@@ -138,11 +139,11 @@ impl ReportJob for PackageAnalysisJob {
                         PackageAnalysisReport {
                             gitlab: self.gitlab,
                             project: self.project,
-                            report_status: vec![ReportStatus::NA(format!(
-                                "{} packages. {} files are duplicated ({})",
-                                packages_with_files.len(),
-                                savable_files,
-                                human_bytes(savable_bytes as f64)
+                            report_status: vec![ReportStatus::NA(fl!(
+                                "package-report",
+                                nb_packages = packages_with_files.len(),
+                                nb_files = savable_files,
+                                size = human_bytes(savable_bytes as f64)
                             ))],
                             packages: packages_with_files,
                             savable_files,
