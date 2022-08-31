@@ -105,8 +105,8 @@ impl RemedyJob for PackageCleanJob {
                     saved_bytes,
                     report_status: vec![ReportStatus::OK(fl!(
                         "package-clean-report",
-                        nb_package = deleted_packages_files.len(),
-                        size = human_bytes(saved_bytes as f64),
+                        nb_packages = deleted_packages_files.len(),
+                        size = human_bytes(saved_bytes as f64)
                     ))],
                     deleted_files: deleted_packages_files,
                 }

@@ -41,7 +41,7 @@ macro_rules! fl {
     }};
 
     ($message_id:literal, $($args:expr),*) => {{
-        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id, $($args), *)
+        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id, $($args) *)
     }};
 }
 // --- End of code boilerplate to load i18n resources

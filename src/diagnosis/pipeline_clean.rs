@@ -9,7 +9,7 @@ use human_bytes::human_bytes;
 use crate::diagnosis::gitlab_connection::Project;
 use crate::diagnosis::pipeline_analysis::{GitlabPipeline, PipelineAnalysisReport};
 use crate::diagnosis::{RemedyJob, GITLAB_SCOPE_ERROR};
-use crate::{ReportPending, ReportStatus, Reportable};
+use crate::{fl, ReportPending, ReportStatus, Reportable};
 
 pub struct PipelineCleanJob {
     pub pipeline_report: PipelineAnalysisReport,
@@ -54,7 +54,7 @@ impl RemedyJob for PipelineCleanJob {
             .filter(|a| a.created_at <= ref_date)
             .count();
         ReportPending {
-            pending_msg: "Deleting old pipelines".to_string(),
+            pending_msg: fl!("pipeline-deleting"),
             job: std::thread::spawn(move || {
                 let mut deleted_pipelines = vec![];
 
@@ -79,17 +79,16 @@ impl RemedyJob for PipelineCleanJob {
                             Err(e) => match e {
                                 ApiError::Gitlab { msg } => {
                                     return match msg.as_str() {
-                                            msg if msg.contains(GITLAB_SCOPE_ERROR) => {
-                                                PipelineCleanReport::fatal_error(
-                                                    pipeline.id,
-                                                    "Your token has insufficient privileges to delete pipelines")
-                                            }
-                                            other => {
-                                                PipelineCleanReport::fatal_error(
-                                                    pipeline.id,
-                                                    other)
-                                            }
-                                        };
+                                        msg if msg.contains(GITLAB_SCOPE_ERROR) => {
+                                            PipelineCleanReport::fatal_error(
+                                                pipeline.id,
+                                                &fl!("error-insufficient-privileges"),
+                                            )
+                                        }
+                                        other => {
+                                            PipelineCleanReport::fatal_error(pipeline.id, other)
+                                        }
+                                    };
                                 }
                                 ApiError::Client { source } => {
                                     retry += 1;
@@ -117,10 +116,10 @@ impl RemedyJob for PipelineCleanJob {
                 );
                 PipelineCleanReport {
                     saved_bytes,
-                    report_status: vec![ReportStatus::OK(format!(
-                        "Deleted {} pipelines, {} saved.",
-                        deleted_pipelines.len(),
-                        human_bytes(saved_bytes as f64)
+                    report_status: vec![ReportStatus::OK(fl!(
+                        "pipeline-clean-report",
+                        nb_pipelines = deleted_pipelines.len(),
+                        size = human_bytes(saved_bytes as f64)
                     ))],
                     deleted_pipelines,
                 }

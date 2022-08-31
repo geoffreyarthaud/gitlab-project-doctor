@@ -15,3 +15,7 @@ package-report = {$nb_packages} packages. {$nb_files} fichiers sont obsolètes (
 package-deleting = Suppression des fichiers de package obsolètes
 error-insufficient-privileges = Le token utilisé n'a pas les permissions requises
 package-clean-report = {$nb_packages} packages supprimés, {$size} récupérés.
+pipeline-analysing = Analyse des pipelines
+pipeline-report = {$total_pipelines} pipelines. {$old_pipelines} pipelines datent de plus de {$nb_days} jours
+pipeline-deleting = Suppression des anciens pipelines
+pipeline-clean-report = {$nb_pipelines} pipelines supprimés, {$size} économisés.
