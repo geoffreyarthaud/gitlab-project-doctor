@@ -14,16 +14,16 @@
 name: release
 on:
   push:
-    branches: # DEBUG
-      - dev/infra
+    #    branches: # DEBUG
+    #      - dev/infra
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
 jobs:
   create-release:
     name: create-release
     runs-on: ubuntu-latest
-    env:
-      GFD_VERSION: TEST-0.0.0 # DEBUG
+    #    env:
+    #      GFD_VERSION: TEST-0.0.0 # DEBUG
     outputs:
       upload_url: ${{ steps.release.outputs.upload_url }}
       gfd_version: ${{ env.GFD_VERSION }}
@@ -80,11 +80,6 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
 
-      - name: Show target env variables
-        run: |
-          echo "target flag is: ${{ env.TARGET_FLAGS }}"
-          echo "target dir is: ${{ env.TARGET_DIR }}"
-
       - name: Build release binary
         run: cargo build --verbose --release
 
@@ -96,7 +91,6 @@ jobs:
         shell: bash
         run: |
           staging="gitlab-forge-doctor-${{ needs.create-release.outputs.gfd_version }}-${{ matrix.build }}"
-          mkdir -p "$staging"/{complete,doc}
           
           cp {README.md,LICENSE} "$staging/"
           
