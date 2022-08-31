@@ -57,13 +57,13 @@ jobs:
         include:
           - build: linux
             os: ubuntu-20.04
-            rust: nightly
+            rust: stable
           - build: macos
             os: macos-latest
-            rust: nightly
+            rust: stable
           - build: windows
             os: windows-2019
-            rust: nightly
+            rust: stable
 
     steps:
       - name: Checkout repository
