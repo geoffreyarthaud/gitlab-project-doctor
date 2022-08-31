@@ -9,13 +9,46 @@ use crate::diagnosis::pipeline_analysis::PipelineAnalysisJob;
 use crate::diagnosis::pipeline_clean::PipelineCleanJob;
 use crate::diagnosis::ReportStatus;
 use crate::diagnosis::{RemedyJob, ReportJob, ReportPending, Reportable};
+use i18n_embed::{
+    fluent::{fluent_language_loader, FluentLanguageLoader},
+    DesktopLanguageRequester,
+};
+use lazy_static::lazy_static;
+use rust_embed::RustEmbed;
 
 pub mod api;
 pub mod cli;
 pub mod diagnosis;
 
+// --- Code boilerplate to load i18n resources
+#[derive(RustEmbed)]
+#[folder = "i18n/"]
+struct Localizations;
+
+lazy_static! {
+    pub static ref LANGUAGE_LOADER: FluentLanguageLoader = {
+        let language_loader: FluentLanguageLoader = fluent_language_loader!();
+        let requested_languages = DesktopLanguageRequester::requested_languages();
+        let _result = i18n_embed::select(&language_loader, &Localizations, &requested_languages);
+        language_loader
+    };
+}
+
+#[macro_export(local_inner_macros)]
+macro_rules! fl {
+    ($message_id:literal) => {{
+        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id)
+    }};
+
+    ($message_id:literal, $($args:expr),*) => {{
+        i18n_embed_fl::fl!($crate::LANGUAGE_LOADER, $message_id, $($args), *)
+    }};
+}
+// --- End of code boilerplate to load i18n resources
+
 fn main() {
     let args = Args::from_args();
+
     let connection_job = {
         if args.url.is_some() {
             ConnectionJob::FromUrl(args.url.unwrap())

@@ -13,9 +13,12 @@ dialoguer = "0.10.2"
 git2 = "0.15.0"
 gitlab = "0.1502.0"
 human_bytes = "0.3.1"
+i18n-embed = { version = "0.13.4", features = ["fluent-system", "desktop-requester"] }
+i18n-embed-fl = "0.6.4"
 indicatif = "0.17.0"
 lazy_static = "1.4.0"
 regex = "1.6.0"
+rust-embed = "6"
 serde = "1.0.142"
 structopt = "0.3.26"
 

@@ -12,6 +12,7 @@ use crate::diagnosis::{
     warning_if, ReportJob, ReportPending, ReportStatus, Reportable, ARTIFACT_JOBS_LIMIT,
     PACKAGE_REGISTRY_LIMIT, REPO_LIMIT, STORAGE_LIMIT,
 };
+use crate::fl;
 
 type Result<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -54,7 +55,7 @@ impl ReportJob for ConnectionJob {
 
     fn diagnose(self) -> ReportPending<Self::Diagnosis> {
         ReportPending::<Self::Diagnosis> {
-            pending_msg: "Connecting to Gitlab".to_string(),
+            pending_msg: fl!("connecting-to-gitlab"),
             job: {
                 std::thread::spawn(|| {
                     ConnectionJob::_to_report_status(match self {
@@ -80,7 +81,7 @@ impl ConnectionJob {
         match result {
             Ok(gitlab) => ConnectionReport {
                 report_status: vec![
-                    ReportStatus::OK(format!("Gitlab repository : {}", gitlab.url)),
+                    ReportStatus::OK(fl!("gitlab-repo", repo = gitlab.url.as_str())),
                     _report_global_storage(&gitlab.project),
                     _report_repo_storage(&gitlab.project),
                     _report_artifact_storage(&gitlab.project),
