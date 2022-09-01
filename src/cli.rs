@@ -1,3 +1,4 @@
+use atty::Stream;
 use std::fmt::Write;
 use std::time::Duration;
 use std::{panic, process};
@@ -94,6 +95,39 @@ pub fn console_report_statuses(report_statuses: &[ReportStatus], initial_indent:
 }
 
 pub fn display_report_pending<T: Reportable>(report_pending: ReportPending<T>) -> T {
+    if atty::is(Stream::Stderr) {
+        _display_report_pending_with_progress(report_pending)
+    } else {
+        _display_report_pending_no_progress(report_pending)
+    }
+}
+
+fn _display_report_pending_no_progress<T: Reportable>(report_pending: ReportPending<T>) -> T {
+    if report_pending.progress.is_some() && report_pending.total.is_some() {
+        eprintln!("  {}", report_pending.pending_msg);
+        let rx = report_pending.progress.unwrap();
+        let total = report_pending.total.unwrap();
+        let milestone = total / 10;
+        while let Ok(received) = rx.recv() {
+            if received % milestone == 0 {
+                eprintln!("  {} %", received * 100 / total);
+            }
+        }
+    } else {
+        eprintln!("  {} ...", report_pending.pending_msg);
+    }
+
+    let result_join = report_pending.job.join();
+    match result_join {
+        Ok(result) => {
+            eprintln!("{}", console_report_statuses(&result.report(), 2));
+            result
+        }
+        Err(e) => panic::resume_unwind(e),
+    }
+}
+
+fn _display_report_pending_with_progress<T: Reportable>(report_pending: ReportPending<T>) -> T {
     let pb;
     let initial_indent: usize;
     if report_pending.progress.is_some() && report_pending.total.is_some() {

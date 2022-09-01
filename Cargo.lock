@@ -513,6 +513,7 @@ dependencies = [
 name = "gitlab-project-doctor"
 version = "0.2.0-SNAPSHOT"
 dependencies = [
+ "atty",
  "chrono",
  "console",
  "derive_builder",
