@@ -127,18 +127,16 @@ pub fn display_report_pending<T: Reportable>(report_pending: ReportPending<T>) -
     }
 }
 
-pub fn input_clean_artifacts() -> Option<i64> {
+pub fn input_clean_artifacts(days: usize) -> Option<usize> {
     if Confirm::new()
         .with_prompt(fl!("ask-delete-pipelines"))
         .interact()
         .unwrap_or(false)
     {
-        let input: i64 = Input::new()
+        let input: usize = Input::new()
             .with_prompt(fl!("ask-age-days"))
-            .default("30".into())
+            .default(days)
             .interact_text()
-            .unwrap_or_else(|_| "0".to_string())
-            .parse()
             .unwrap_or(0);
         if input > 0 {
             Some(input)

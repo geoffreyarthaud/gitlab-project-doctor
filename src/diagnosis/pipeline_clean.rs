@@ -13,7 +13,7 @@ use crate::{fl, ReportPending, ReportStatus, Reportable};
 
 pub struct PipelineCleanJob {
     pub pipeline_report: PipelineAnalysisReport,
-    pub days: i64,
+    pub days: usize,
 }
 
 pub struct PipelineCleanReport {
@@ -46,7 +46,7 @@ impl RemedyJob for PipelineCleanJob {
 
     fn remedy(self) -> ReportPending<Self::Report> {
         let (tx, rx) = mpsc::channel();
-        let ref_date = Local::now() - Duration::days(self.days);
+        let ref_date = Local::now() - Duration::days(self.days as i64);
         let count = self
             .pipeline_report
             .pipelines
@@ -131,10 +131,7 @@ impl RemedyJob for PipelineCleanJob {
 }
 
 impl PipelineCleanJob {
-    pub fn from(pipeline_report: PipelineAnalysisReport, days: i64) -> Self {
-        if days < 0 {
-            panic!("Number of days must be 1 or superior")
-        }
+    pub fn from(pipeline_report: PipelineAnalysisReport, days: usize) -> Self {
         Self {
             pipeline_report,
             days,
