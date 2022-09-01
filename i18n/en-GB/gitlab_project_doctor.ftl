@@ -22,3 +22,7 @@ pipeline-clean-report = Deleted {$nb_pipelines} pipelines, {$size} saved.
 ask-delete-pipelines = Delete old pipelines ?
 ask-delete-files = Delete obsolete files ?
 ask-age-days = From which age in days ?
+help-url = Analyze the project from the URL of Gitlab repository
+help-git-path = Analyze the project from a local path of a Git repository. Ignored if url option is specified
+help-batch = Batch mode : No questions, no progress bar, ideal for CI environment
+help-days = Number of days from which an element is considered "old", 30 by default

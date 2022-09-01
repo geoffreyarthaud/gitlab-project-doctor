@@ -22,3 +22,7 @@ pipeline-clean-report = {$nb_pipelines} pipelines supprimés, {$size} économis�
 ask-delete-pipelines = Supprimer anciens pipelines ?
 ask-delete-files = Supprimer fichiers obsolètes ?
 ask-age-days = Datant de plus de combien de jours ?
+help-url = Analyse du projet à partir d'une URL Gitlab
+help-git-path = Analyse du projet à partir d'un chemin vers un dépôt Git. Ignoré si l'option url est spécifiée
+help-batch = Mode batch : pas de questions, pas de barre de progression, idéal pour du CI
+help-days = Nombre de jours d'ancienneté à partir duquel un élément est considéré "ancien"

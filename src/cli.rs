@@ -2,12 +2,12 @@ use std::fmt::Write;
 use std::time::Duration;
 use std::{panic, process};
 
+use crate::{fl, ReportPending, ReportStatus, Reportable};
 use console::style;
 use dialoguer::{Confirm, Input};
 use indicatif::{ProgressBar, ProgressStyle};
+use lazy_static::lazy_static;
 use structopt::StructOpt;
-
-use crate::{fl, ReportPending, ReportStatus, Reportable};
 
 pub fn fatal_if_none<T>(result: Option<T>, msg: &str) -> T {
     match result {
@@ -18,16 +18,23 @@ pub fn fatal_if_none<T>(result: Option<T>, msg: &str) -> T {
         }
     }
 }
+lazy_static! {
+    static ref HELP_URL: String = fl!("help-url");
+    static ref HELP_GIT_PATH: String = fl!("help-git-path");
+    static ref HELP_BATCH_MODE: String = fl!("help-batch");
+    static ref HELP_DAYS: String = fl!("help-days");
+}
 
 #[derive(StructOpt)]
 pub struct Args {
-    #[structopt(name = "url", long)]
-    /// Analyze the project from the URL of Gitlab repository
+    #[structopt(name = "url", long, help = &HELP_URL)]
     pub url: Option<String>,
-    #[structopt(name = "git_path", required_unless = "url")]
-    /// Analyze the project from a local path of a Git repository. Ignored if url option is
-    /// specified
+    #[structopt(name = "git_path", required_unless = "url", help = &HELP_GIT_PATH)]
     pub git_path: Option<String>,
+    #[structopt(long = "batch", short = "b", help = &HELP_BATCH_MODE)]
+    pub batch_mode: bool,
+    #[structopt(long = "days", short = "d", default_value = "30", help = &HELP_DAYS)]
+    pub days: usize,
 }
 
 fn console_report_status(buffer: &mut String, report_status: &ReportStatus, indent: usize) {
