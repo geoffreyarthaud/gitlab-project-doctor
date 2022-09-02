@@ -10,13 +10,6 @@ jobs:
   test:
     name: test
     env:
-      # For some builds, we use cross to test on 32-bit and big-endian
-      # systems.
-      CARGO: cargo
-      # When CARGO is set to CROSS, this is set to `--target matrix.target`.
-      TARGET_FLAGS: ""
-      # When CARGO is set to CROSS, TARGET_DIR includes matrix.target.
-      TARGET_DIR: ./target
       # Emit backtraces on panics.
       RUST_BACKTRACE: 1
     strategy:
@@ -27,7 +20,6 @@ jobs:
           - nightly
           - macos
           - windows
-          - musl-linux
         include:
           - build: stable
             os: ubuntu-20.04
@@ -38,10 +30,6 @@ jobs:
           - build: nightly
             os: ubuntu-20.04
             rust: nightly
-          - build: musl-linux
-            os: ubuntu-20.04
-            rust: stable
-            target: x86_64-unknown-linux-musl
           - build: macos
             os: macos-latest
             rust: nightly
@@ -51,7 +39,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install OpenSSL
         if: matrix.os == 'windows-2019'
         run: |
@@ -62,21 +50,8 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
 
-      - name: Use Cross
-        if: matrix.target != ''
-        run: |
-          cargo install cross
-          echo "CARGO=cross" >> $GITHUB_ENV
-          echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
-          echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
-
-      - name: Show command used for Cargo
-        run: |
-          echo "cargo command is: ${{ env.CARGO }}"
-          echo "target flag is: ${{ env.TARGET_FLAGS }}"
-
       - name: Build gitlab-project-doctor and all crates
-        run: ${{ env.CARGO }} build --verbose --workspace ${{ env.TARGET_FLAGS }}
+        run: cargo build --verbose
 
       # This is useful for debugging problems when the expected build artifacts
       # (like shell completions and man pages) aren't generated.
@@ -84,7 +59,7 @@ jobs:
         shell: bash
         run: |
           set +x
-          stderr="$(find "${{ env.TARGET_DIR }}/debug" -name stderr -print0 | xargs -0 ls -t | head -n1)"
+          stderr="$(find "target/debug" -name stderr -print0 | xargs -0 ls -t | head -n1)"
           if [ -s "$stderr" ]; then
             echo "===== $stderr ===== "
             cat "$stderr"
@@ -93,14 +68,32 @@ jobs:
           set -x
 
       - name: Run tests
-        run: ${{ env.CARGO }} test --verbose --workspace ${{ env.TARGET_FLAGS }}
+        run: cargo test --verbose
+
+  test_musl:
+    name: test_musl
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build image but no push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          tags: |
+            geoffreyarthaud/gitlab-project-doctor:latest
+          target: image-dev
+          push: false
 
   rustfmt:
     name: rustfmt
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install Rust
         uses: dtolnay/rust-toolchain@v1
         with:
@@ -115,7 +108,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install Rust
         uses: dtolnay/rust-toolchain@v1
         with:
