@@ -19,6 +19,7 @@ pipeline-analysing = Analysis of pipelines
 pipeline-report = {$total_pipelines} pipelines. {$old_pipelines} pipelines are older than {$nb_days} days
 pipeline-deleting = Deleting old pipelines
 pipeline-clean-report = Deleted {$nb_pipelines} pipelines, {$size} saved.
+pipeline-last-notdeleted = Latest pipeline is not deleted.
 ask-delete-pipelines = Delete old pipelines ?
 ask-delete-files = Delete obsolete files ?
 ask-age-days = From which age in days ?

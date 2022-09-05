@@ -57,9 +57,14 @@ impl RemedyJob for PipelineCleanJob {
             pending_msg: fl!("pipeline-deleting"),
             job: std::thread::spawn(move || {
                 let mut deleted_pipelines = vec![];
-
+                let last_index = self.pipeline_report.pipelines.len() - 1;
+                let mut last_is_old = false;
                 for (i, pipeline) in self.pipeline_report.pipelines.into_iter().enumerate() {
                     if pipeline.created_at > ref_date {
+                        break;
+                    }
+                    if i == last_index {
+                        last_is_old = true;
                         break;
                     }
                     let mut retry = 0;
@@ -114,13 +119,17 @@ impl RemedyJob for PipelineCleanJob {
                     &self.pipeline_report.gitlab,
                     &self.pipeline_report.project,
                 );
+                let mut report_status = vec![ReportStatus::OK(fl!(
+                    "pipeline-clean-report",
+                    nb_pipelines = deleted_pipelines.len(),
+                    size = human_bytes(saved_bytes as f64)
+                ))];
+                if last_is_old {
+                    report_status.push(ReportStatus::NA(fl!("pipeline-last-notdeleted")));
+                }
                 PipelineCleanReport {
                     saved_bytes,
-                    report_status: vec![ReportStatus::OK(fl!(
-                        "pipeline-clean-report",
-                        nb_pipelines = deleted_pipelines.len(),
-                        size = human_bytes(saved_bytes as f64)
-                    ))],
+                    report_status,
                     deleted_pipelines,
                 }
             }),
