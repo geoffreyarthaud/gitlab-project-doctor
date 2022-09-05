@@ -109,7 +109,7 @@ fn _display_report_pending_no_progress<T: Reportable>(report_pending: ReportPend
         let total = report_pending.total.unwrap();
         let milestone = total / 10;
         while let Ok(received) = rx.recv() {
-            if received % milestone == 0 {
+            if milestone != 0 && received % milestone == 0 {
                 eprintln!("  {} %", received * 100 / total);
             }
         }
