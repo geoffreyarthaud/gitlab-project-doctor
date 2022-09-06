@@ -14,7 +14,7 @@
 <h3 align="center">Gitlab Project Doctor</h3>
 
   <p align="center">
-    A CLI tool to cleanup a Gitlab repository
+    Un outil en ligne de commande pour nettoyer un dépôt Gitlab
     <br />
 </p>
 </div>
@@ -23,19 +23,19 @@
 
 <!-- TABLE OF CONTENTS -->
 <details>
-  <summary>Table of Contents</summary>
+  <summary>Sommaire</summary>
   <ol>
     <li>
-      <a href="#about-the-project">About The Project</a>
+      <a href="#le-projet">Le projet</a>
     </li>
     <li>
-      <a href="#getting-started">Getting Started</a>
+      <a href="#demarrage-rapide">Démarrage rapide</a>
     </li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
+    <li><a href="#feuille-de-route">Feuille de route</a></li>
+    <li><a href="#contributions">Contributions</a></li>
+    <li><a href="#licence">Licence</a></li>
     <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
+    <li><a href="#remerciements">Remerciements</a></li>
   </ol>
 </details>
 
@@ -43,18 +43,14 @@
 
 <!-- ABOUT THE PROJECT -->
 
-## About The Project
+## Le projet
 
-Gitlab Project doctor is a CLI tool to clean up Gitlab repositories,
-especially (for now) :
+Gitlab Project doctor est un outil en lignes de commande pour nettoyer un dépôt Gitlab, en particulier :
 
-- Old pipelines (with jobs and jobs artifacts)
-- Obsolete packages from package registry
+- Anciens pipelines (avec les artefacts de jobs)
+- Les packages obsolètes du package registry
 
-It has first class support on Windows, macOS and Linux, with binary downloads
-available
-for [every release](https://github.com/geoffreyarthaud/gitlab-project-doctor/releases)
-.
+Il supporte Windows, MacOS, et Linux, dont les distributions binaires sont disponibles à [chaque release](https://github.com/geoffreyarthaud/gitlab-project-doctor/releases).
 
 ![Product Name Screen Shot][product-screenshot]
 
@@ -62,48 +58,47 @@ for [every release](https://github.com/geoffreyarthaud/gitlab-project-doctor/rel
 
 <!-- GETTING STARTED -->
 
-## Getting Started
+## Démarrage rapide
 
 ### Installation
 
-1. Download
-   the [latest release](https://github.com/geoffreyarthaud/gitlab-project-doctor/releases)
-   for your OS
-2. Unzip and make gitlab-project-doctor executable
+1. Télécharger la [dernière version](https://github.com/geoffreyarthaud/gitlab-project-doctor/releases)
+   pour votre système d'exploitation.
+2. Dézipper et rendre la commande exécutable
    ```sh
    chmod +x gitlab-project-doctor
    ```
-3. The environment variable GL_TOKEN needs to be set with a private token with
-   sufficient privileges (owner of a project). For instance, on Linux :
+3. La variable d'environnement GL_TOKEN a besoin d'être définie avec un token privé muni des bons
+privilèges (owner du projet). Par exemple, pour Linux :
     ```sh
-    read -s GL_TOKEN # To secretly set the variable
+    read -s GL_TOKEN # Pour entrer le secret
     ```
 
 ### Usage
 
-1. You can analyze a project from a local Git path whose first remote is a
-   gitlab repository
+1. Vous pouvez analyser le projet dont le premier remote est un dépôt Gitlab
     ```sh
     cd my_favorite_gitlab_repo
     gitlab-project-doctor .
     ```
-2. Or you can analyze a project from a remote Gitlab repository
+2. Ou vous pouvez analyser aà partir de l'URL du projet Gitlab
     ```sh
     gitlab-project-doctor --url https://<your-gitlab-repo.com>/your-project-path
     ```
 
-On Gitlab, if you allow duplicate packages (same name, same version), when you
-upload a package, the former one
-is not deleted. gitlab-project-doctor detects :
+Avec Gitlab, lorsque vous autorisez les packages dupliqués (par défaut), lorsque vous
+téléversez un package avec le même nom et la même version, l'ancien package n'ets plus disponible,
+mais n'est pas supprimé ! gitlab-project-doctor détecte :
 
-- Generic duplicate packages: same name, same version
-- Maven SNAPSHOT duplicate packages: same artifactId, same SNAPSHOT version.
+- Les packages dupliqués génériques : même nom, même version
+- Les anciens packages Maven SNAPSHOT : Même artifactId et même version SNAPSHOT
 
-### Usage on CI/CD
+### Usage en CI/CD
 
-You can use gitlab-project-doctor in batch mode, for example in a CI/CD job.
+Vous pouvez utiliser gitlab-project-doctor en mode batch, par exemple dans un job
+de CI/CD.
 
-In a Gitlab environment, here is an example of job declaration :
+Dans un environnement Gitlab CI, voici un exemple de déclaration :
 
 ```yaml
 # A job in the .gitlab-ci.yml file of the project you want to clean
@@ -122,18 +117,16 @@ clean_project:
 
 <!-- ROADMAP -->
 
-## Roadmap
+## Feuille de route
 
-- [X] Initial release with generic and maven packages detection
-- [X] Internationalization (French)
-- [X] Batch-mode and container image (Alpine-based)
+- [X] Release initiale avec détection de packages generic et Maven
+- [X] Internationalisation (Français)
+- [X] Mode batch et image de container (basée sur Alpine)
 - [ ] Container registry
-- [ ] Fat git repositories
+- [ ] Dépôts Git trop volumineux
 
-See
-the [open issues](https://github.com/geoffreyarthaud/gitlab-project-doctor/issues)
-for a
-full list of proposed features (and known issues).
+Cf. [open issues](https://github.com/geoffreyarthaud/gitlab-project-doctor/issues)
+pour une liste de nouvelles fonctionnalités proposées et bugs connus.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -141,22 +134,22 @@ full list of proposed features (and known issues).
 
 <!-- CONTRIBUTING -->
 
-## Contributing
+## Contributions
 
-Contributions are what make the open source community such an amazing place to
-learn, inspire, and create. Any contributions you make are **greatly
-appreciated**.
+Les contributions sont ce qui fait de la communauté open source un endroit incroyable pour
+apprendre, s'inspirer et de créer. Toutes les contributions que vous faites sont **grandement
+appréciées**.
 
-If you have a suggestion that would make this better, please fork the repo and
-create a pull request. You can also simply open an issue with the tag "
+Si vous avez une suggestion qui permettrait d'améliorer ce projet, veuillez forker le dépôt et
+créer une pull request. Vous pouvez aussi simplement ouvrir une issue avec le tag "
 enhancement".
-Don't forget to give the project a star! Thanks again!
+N'oubliez pas de donner une étoile au projet ! Merci encore !
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+1. Forkez le Project
+2. Créez votre branche de feature (`git checkout -b feature/AmazingFeature`)
+3. Commitez votre codes (`git commit -m 'Add some AmazingFeature'`)
+4. Pushez sur la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrez Pull Request
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -164,9 +157,9 @@ Don't forget to give the project a star! Thanks again!
 
 <!-- LICENSE -->
 
-## License
+## Licence
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distribué sous la licence MIT. Voir `LICENSE` pour plus d'informations.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -186,9 +179,9 @@ Geoffrey Arthaud - numerique-ecologie@developpement-durable.gouv.fr
 
 <!-- ACKNOWLEDGMENTS -->
 
-## Acknowledgments
+## Remerciements
 
-* [ripgrep project](https://github.com/BurntSushi/ripgrep) for Github actions
+* [ripgrep project](https://github.com/BurntSushi/ripgrep) pour les Github actions
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
