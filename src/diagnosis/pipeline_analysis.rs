@@ -4,7 +4,6 @@ use gitlab::Gitlab;
 use serde::Deserialize;
 
 use crate::diagnosis::gitlab_connection::{GitlabRepository, Project};
-use crate::diagnosis::ARTIFACT_JOBS_DAYS_LIMIT;
 use crate::{fl, ReportJob, ReportPending, ReportStatus, Reportable};
 
 #[derive(Debug, Deserialize)]
@@ -16,6 +15,7 @@ pub struct GitlabPipeline {
 pub struct PipelineAnalysisJob {
     pub gitlab: Gitlab,
     pub project: Project,
+    pub days: usize,
 }
 
 pub struct PipelineAnalysisReport {
@@ -73,7 +73,8 @@ impl ReportJob for PipelineAnalysisJob {
                         vec![],
                     ),
                     Ok(mut pipelines) => {
-                        let ref_date = Local::now() - Duration::days(ARTIFACT_JOBS_DAYS_LIMIT);
+                        let days = self.days;
+                        let ref_date = Local::now() - Duration::days(days as i64);
                         pipelines.sort_by(|a, b| a.created_at.partial_cmp(&b.created_at).unwrap());
                         self.to_report(
                             vec![ReportStatus::NA(fl!(
@@ -83,7 +84,7 @@ impl ReportJob for PipelineAnalysisJob {
                                     .iter()
                                     .position(|e| e.created_at > ref_date)
                                     .unwrap_or(pipelines.len()),
-                                nb_days = ARTIFACT_JOBS_DAYS_LIMIT
+                                nb_days = days
                             ))],
                             pipelines,
                         )
@@ -97,10 +98,11 @@ impl ReportJob for PipelineAnalysisJob {
 }
 
 impl PipelineAnalysisJob {
-    pub fn from(gitlab: &GitlabRepository) -> PipelineAnalysisJob {
+    pub fn from(gitlab: &GitlabRepository, days: usize) -> PipelineAnalysisJob {
         PipelineAnalysisJob {
             gitlab: gitlab.gitlab.clone(),
             project: gitlab.project.clone(),
+            days,
         }
     }
 }

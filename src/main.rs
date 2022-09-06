@@ -68,10 +68,13 @@ fn main() {
     let connection_data = cli::fatal_if_none(connection.data, "Diagnosis stops here.");
 
     // Analysis of artifacts
-    let report_pending = PipelineAnalysisJob::from(&connection_data).diagnose();
+    let report_pending = PipelineAnalysisJob::from(&connection_data, args.days).diagnose();
     let pipeline_report = cli::display_report_pending(report_pending);
     if !pipeline_report.pipelines.is_empty() {
-        if let Some(days) = cli::input_clean_artifacts() {
+        if args.batch_mode {
+            let report_pending = PipelineCleanJob::from(pipeline_report, args.days).remedy();
+            let _ = cli::display_report_pending(report_pending);
+        } else if let Some(days) = cli::input_clean_artifacts(args.days) {
             let report_pending = PipelineCleanJob::from(pipeline_report, days).remedy();
             let _ = cli::display_report_pending(report_pending);
         } else {
@@ -86,7 +89,7 @@ fn main() {
     let report_pending = PackageAnalysisJob::from(&connection_data).diagnose();
     let package_report = cli::display_report_pending(report_pending);
     if !package_report.obsolete_files.is_empty() {
-        if cli::input_clean_files() {
+        if args.batch_mode || cli::input_clean_files() {
             let report_pending = PackageCleanJob::from(package_report).remedy();
             let _ = cli::display_report_pending(report_pending);
         } else {

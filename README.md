@@ -1,26 +1,18 @@
 <!-- Adapted from https://github.com/othneildrew/Best-README-Template/ -->
-<!-- PROJECT SHIELDS -->
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
-[![Rust][Rust]][Rust-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
 
 <!-- PROJECT LOGO -->
-<br />
 <div align="center">
+
+[![MIT License][license-shield]][license-url]
+[![Rust][Rust]][Rust-url]
+[![Forge MTE][MTE]][MTE-url]
 
 <h3 align="center">Gitlab Project Doctor</h3>
 
   <p align="center">
     A CLI tool to cleanup a Gitlab repository
     <br />
-    <a href="https://github.com/geoffreyarthaud/gitlab-project-doctor/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/geoffreyarthaud/gitlab-project-doctor/issues">Request Feature</a>
-  </p>
+</p>
 </div>
 
 
@@ -103,6 +95,25 @@ is not deleted. gitlab-project-doctor detects :
 - Generic duplicate packages: same name, same version
 - Maven SNAPSHOT duplicate packages: same artifactId, same SNAPSHOT version.
 
+### Usage on CI/CD
+
+You can use this gitlab-project-doctor in batch mode, for example in a CI/CD job.
+
+In a Gitlab environment, here is an example of job declaration :
+
+```yaml
+# A job in the .gitlab-ci.yml file of the project you want to clean
+clean_project:
+  image: $CI_REGISTRY/pub/numeco/gitlab-project-doctor:latest
+  variables:
+    # You need to declare a project-based private token with **owner** privilege
+    GL_TOKEN: $GL_WRITE_TOKEN
+  stage: build
+  # The option -b activates the batch mode
+  # The option -d specifies the number of days
+  script:
+    - gitlab-project-doctor --url $CI_PROJECT_URL -b -d 30
+```
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- ROADMAP -->
@@ -110,7 +121,8 @@ is not deleted. gitlab-project-doctor detects :
 ## Roadmap
 
 - [X] Initial release with generic and maven packages detection
-- [ ] Internationalization (French)
+- [X] Internationalization (French)
+- [X] Batch-mode and container image (Alpine-based)
 - [ ] Container registry
 - [ ] Fat git repositories
 
@@ -162,8 +174,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 Geoffrey Arthaud - numerique-ecologie@developpement-durable.gouv.fr
 
-Project
-Link: [https://github.com/geoffreyarthaud/gitlab-project-doctor](https://github.com/geoffreyarthaud/gitlab-project-doctor)
+[![LinkedIn][linkedin-shield]][linkedin-url]
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -181,22 +192,6 @@ Link: [https://github.com/geoffreyarthaud/gitlab-project-doctor](https://github.
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/geoffreyarthaud/gitlab-project-doctor.svg?style=for-the-badge
-
-[contributors-url]: https://github.com/geoffreyarthaud/gitlab-project-doctor/graphs/contributors
-
-[forks-shield]: https://img.shields.io/github/forks/geoffreyarthaud/gitlab-project-doctor.svg?style=for-the-badge
-
-[forks-url]: https://github.com/geoffreyarthaud/gitlab-project-doctor/network/members
-
-[stars-shield]: https://img.shields.io/github/stars/geoffreyarthaud/gitlab-project-doctor.svg?style=for-the-badge
-
-[stars-url]: https://github.com/geoffreyarthaud/gitlab-project-doctor/stargazers
-
-[issues-shield]: https://img.shields.io/github/issues/geoffreyarthaud/gitlab-project-doctor.svg?style=for-the-badge
-
-[issues-url]: https://github.com/geoffreyarthaud/gitlab-project-doctor/issues
-
 [license-shield]: https://img.shields.io/github/license/geoffreyarthaud/gitlab-project-doctor.svg?style=for-the-badge
 
 [license-url]: https://github.com/geoffreyarthaud/gitlab-project-doctor/blob/master/LICENSE.txt
@@ -210,5 +205,9 @@ Link: [https://github.com/geoffreyarthaud/gitlab-project-doctor](https://github.
 [Rust]: https://img.shields.io/badge/rust-000000?style=for-the-badge&logo=rust&logoColor=white
 
 [Rust-url]: https://www.rust-lang.org/
+
+[MTE]: https://img.shields.io/badge/forge%20MTE-0000?color=00008f&style=for-the-badge&logo=gitlab
+
+[MTE-url]: https://gitlab-forge.din.developpement-durable.gouv.fr/pub/numeco/gitlab-project-doctor
 
 
