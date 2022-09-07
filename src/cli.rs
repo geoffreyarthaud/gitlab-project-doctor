@@ -24,6 +24,7 @@ lazy_static! {
     static ref HELP_GIT_PATH: String = fl!("help-git-path");
     static ref HELP_BATCH_MODE: String = fl!("help-batch");
     static ref HELP_DAYS: String = fl!("help-days");
+    static ref HELP_ANALYSIS: String = fl!("help-analysis");
 }
 
 #[derive(StructOpt)]
@@ -36,6 +37,8 @@ pub struct Args {
     pub batch_mode: bool,
     #[structopt(long = "days", short = "d", default_value = "30", help = &HELP_DAYS)]
     pub days: usize,
+    #[structopt(long = "analysis", short = "a", help = &HELP_ANALYSIS)]
+    pub analysis_mode: bool,
 }
 
 fn console_report_status(buffer: &mut String, report_status: &ReportStatus, indent: usize) {

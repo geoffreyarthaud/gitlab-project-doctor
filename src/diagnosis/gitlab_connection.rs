@@ -6,7 +6,7 @@ use gitlab::api::{projects, Query};
 use gitlab::Gitlab;
 use human_bytes::human_bytes;
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::diagnosis::{
     warning_if, ReportJob, ReportPending, ReportStatus, Reportable, ARTIFACT_JOBS_LIMIT,
@@ -16,7 +16,7 @@ use crate::fl;
 
 type Result<T> = std::result::Result<T, Box<dyn error::Error>>;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct Statistics {
     pub commit_count: u64,
     pub storage_size: u64,
