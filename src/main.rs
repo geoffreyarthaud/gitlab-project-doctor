@@ -34,6 +34,21 @@ lazy_static! {
         let _result = i18n_embed::select(&language_loader, &Localizations, &requested_languages);
         language_loader
     };
+    pub static ref IMPACT_RANGE: Vec<u64> = vec![
+        100 * 1024 * 1024, // XS -> 100 Mo -> S
+        500 * 1024 * 1024, // 500 Mo -> M
+        3 * 1024 * 1024 * 1024, // 3 Go -> L
+        10 * 1024 * 1024 * 1024 // 10 Go -> XL
+    ];
+    pub static ref IMPACT_ACRONYM: Vec<&'static str> = vec!["XS","S","M","L","XL"];
+
+    pub static ref RATING_RANGE: Vec<u64> = vec![
+        10, // A -> B
+        25, // -> C
+        50, // -> D
+        90 // -> E
+    ];
+    pub static ref RATING_ACRONYM: Vec<&'static str> = vec!["A","B","C","D","E"];
 }
 
 #[macro_export(local_inner_macros)]
@@ -55,12 +70,47 @@ struct AnalysisReport {
     pub savable_bytes_jobs: u64,
     pub savable_bytes_packages: u64,
     pub savable_bytes_containers: u64,
-    pub rating: Option<String>,
+    pub rating: Option<&'static str>,
+    pub impact: Option<&'static str>,
 }
 
 impl AnalysisReport {
-    pub fn compute_rating(&mut self) {
-        self.rating = Some("A".to_string());
+    pub fn compute_values(&mut self) {
+        let rating_number = self._get_rating();
+        self.rating = Some(
+            RATING_ACRONYM[RATING_RANGE
+                .iter()
+                .position(|&e| rating_number < e)
+                .unwrap_or(RATING_ACRONYM.len() - 1)],
+        );
+
+        let impact_number = self._get_impact();
+        self.impact = Some(
+            IMPACT_ACRONYM[IMPACT_RANGE
+                .iter()
+                .position(|&e| impact_number < e)
+                .unwrap_or(IMPACT_ACRONYM.len() - 1)],
+        );
+    }
+
+    pub fn _get_impact(&self) -> u64 {
+        // Impact == Disk impact. git repo is evaluated ten times
+        self.stats.repository_size * 9 + self.stats.storage_size
+    }
+
+    pub fn _get_rating(&self) -> u64 {
+        // Rating == Margin of improvement (less is better)
+        // Containers are ignored for now
+        let repo_limit = 100 * 1024 * 1024;
+        let savable_repo = if self.stats.repository_size > repo_limit {
+            self.stats.repository_size - repo_limit
+        } else {
+            0
+        };
+        (savable_repo * 9 + self.savable_bytes_jobs + self.savable_bytes_packages) * 100
+            / (self.stats.repository_size * 9
+                + self.stats.job_artifacts_size
+                + self.stats.packages_size)
     }
 }
 
@@ -127,8 +177,9 @@ fn main() {
             savable_bytes_packages: package_report.savable_bytes,
             savable_bytes_containers: 0,
             rating: None,
+            impact: None,
         };
-        global_report.compute_rating();
+        global_report.compute_values();
         println!("{}", serde_json::to_string(&global_report).unwrap());
     } else if args.batch_mode {
         // Batch mode
