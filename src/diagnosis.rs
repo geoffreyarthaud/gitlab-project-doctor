@@ -2,6 +2,7 @@ use std::sync::mpsc::Receiver;
 use std::thread::JoinHandle;
 
 pub mod gitlab_connection;
+pub mod job_analysis;
 pub mod package_analysis;
 pub mod package_clean;
 pub mod pipeline_analysis;
