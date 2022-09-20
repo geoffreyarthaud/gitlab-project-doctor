@@ -24,6 +24,10 @@ pub struct Statistics {
     pub job_artifacts_size: u64,
     pub packages_size: u64,
 }
+#[derive(Debug, Deserialize, Clone)]
+pub struct ContainerExpirationPolicy {
+    pub enabled: bool,
+}
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Project {
@@ -31,6 +35,10 @@ pub struct Project {
     pub name: String,
     pub statistics: Statistics,
     pub jobs_enabled: bool,
+    pub container_registry_enabled: bool,
+    pub container_expiration_policy: ContainerExpirationPolicy,
+    pub web_url: String,
+    pub path_with_namespace: String,
 }
 
 pub struct GitlabRepository {

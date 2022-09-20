@@ -1,0 +1,7 @@
+query ConfPackageDuplicateQuery($projectPath: ID!) {
+  project(fullPath: $projectPath) {
+    packagesCleanupPolicy {
+      keepNDuplicatedPackageFiles
+    }
+  }
+}
