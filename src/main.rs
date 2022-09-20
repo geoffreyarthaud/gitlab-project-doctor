@@ -2,6 +2,7 @@ use structopt::StructOpt;
 
 use cli::Args;
 
+use crate::diagnosis::conf_analysis::{ConfAnalysisJob, ConfAnalysisReport};
 use crate::diagnosis::gitlab_connection::{ConnectionJob, GitlabRepository, Statistics};
 use crate::diagnosis::job_analysis::{JobAnalysisJob, JobAnalysisReport};
 use crate::diagnosis::package_analysis::{PackageAnalysisJob, PackageAnalysisReport};
@@ -148,11 +149,15 @@ fn _analyze_jobs(days: usize, connection_data: &GitlabRepository) -> JobAnalysis
     cli::display_report_pending(report_pending)
 }
 
-fn _analyse_packages(connection_data: &GitlabRepository) -> PackageAnalysisReport {
+fn _analyze_packages(connection_data: &GitlabRepository) -> PackageAnalysisReport {
     let report_pending = PackageAnalysisJob::from(connection_data).diagnose();
     cli::display_report_pending(report_pending)
 }
 
+fn _analyze_configuration(connection_data: &GitlabRepository) -> ConfAnalysisReport {
+    let report_pending = ConfAnalysisJob::from(connection_data).diagnose();
+    cli::display_report_pending(report_pending)
+}
 fn _clean_packages(report: PackageAnalysisReport) {
     if !report.obsolete_files.is_empty() {
         return;
@@ -165,11 +170,13 @@ fn main() {
     let args = Args::from_args();
     eprintln!("Gitlab Project Doctor v{}", env!("CARGO_PKG_VERSION"));
     let connection_data = _connect_to_gitlab(&args);
+    let _ = _analyze_configuration(&connection_data);
     if args.analysis_mode {
         // Analysis mode
 
         let job_report = _analyze_jobs(args.days, &connection_data);
-        let package_report = _analyse_packages(&connection_data);
+        let package_report = _analyze_packages(&connection_data);
+
         let mut global_report = AnalysisReport {
             url: connection_data.url,
             stats: connection_data.project.statistics,
@@ -185,7 +192,7 @@ fn main() {
         // Batch mode
 
         _clean_pipelines(args.days, _analyze_pipelines(args.days, &connection_data));
-        _clean_packages(_analyse_packages(&connection_data));
+        _clean_packages(_analyze_packages(&connection_data));
     } else {
         // Interactive mode
 
@@ -203,7 +210,7 @@ fn main() {
                 _clean_pipelines(days, report);
             }
         }
-        let report = _analyse_packages(&connection_data);
+        let report = _analyze_packages(&connection_data);
         if cli::input_clean_files() {
             _clean_packages(report);
         } else {

@@ -1,6 +1,6 @@
 use std::sync::mpsc::Receiver;
 use std::thread::JoinHandle;
-
+pub mod conf_analysis;
 pub mod gitlab_connection;
 pub mod job_analysis;
 pub mod package_analysis;
@@ -52,5 +52,11 @@ pub fn warning_if(condition: bool, message: String) -> ReportStatus {
         ReportStatus::WARNING(message)
     } else {
         ReportStatus::OK(message)
+    }
+}
+
+impl ReportStatus {
+    pub fn is_ok(&self) -> bool {
+        matches!(self, ReportStatus::OK(_))
     }
 }

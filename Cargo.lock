@@ -520,6 +520,7 @@ dependencies = [
  "dialoguer",
  "git2",
  "gitlab",
+ "graphql_client",
  "human_bytes",
  "i18n-embed",
  "i18n-embed-fl",
