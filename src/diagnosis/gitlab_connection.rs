@@ -36,7 +36,7 @@ pub struct Project {
     pub statistics: Statistics,
     pub jobs_enabled: bool,
     pub container_registry_enabled: bool,
-    pub container_expiration_policy: ContainerExpirationPolicy,
+    pub container_expiration_policy: Option<ContainerExpirationPolicy>,
     pub web_url: String,
     pub path_with_namespace: String,
 }

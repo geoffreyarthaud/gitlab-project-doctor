@@ -71,7 +71,12 @@ impl ConfAnalysisJob {
 
     fn _report_container_policy(&self) -> ReportStatus {
         if !self.project.container_registry_enabled
-            || self.project.container_expiration_policy.enabled
+            || self
+                .project
+                .container_expiration_policy
+                .as_ref()
+                .map(|c| c.enabled)
+                .unwrap_or(false)
         {
             ReportStatus::OK(fl!("container-policy-enabled"))
         } else {

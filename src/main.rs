@@ -3,6 +3,7 @@ use structopt::StructOpt;
 use cli::Args;
 
 use crate::diagnosis::conf_analysis::{ConfAnalysisJob, ConfAnalysisReport};
+use crate::diagnosis::container_analysis::{ContainerAnalysisJob, ContainerAnalysisReport};
 use crate::diagnosis::gitlab_connection::{ConnectionJob, GitlabRepository, Statistics};
 use crate::diagnosis::job_analysis::{JobAnalysisJob, JobAnalysisReport};
 use crate::diagnosis::package_analysis::{PackageAnalysisJob, PackageAnalysisReport};
@@ -158,6 +159,12 @@ fn _analyze_configuration(connection_data: &GitlabRepository) -> ConfAnalysisRep
     let report_pending = ConfAnalysisJob::from(connection_data).diagnose();
     cli::display_report_pending(report_pending)
 }
+
+fn _analyze_registry(days: usize, connection_data: &GitlabRepository) -> ContainerAnalysisReport {
+    let report_pending = ContainerAnalysisJob::from(connection_data, days).diagnose();
+    cli::display_report_pending(report_pending)
+}
+
 fn _clean_packages(report: PackageAnalysisReport) {
     if !report.obsolete_files.is_empty() {
         return;
@@ -171,6 +178,7 @@ fn main() {
     eprintln!("Gitlab Project Doctor v{}", env!("CARGO_PKG_VERSION"));
     let connection_data = _connect_to_gitlab(&args);
     let _ = _analyze_configuration(&connection_data);
+    let _ = _analyze_registry(args.days, &connection_data);
     if args.analysis_mode {
         // Analysis mode
 
