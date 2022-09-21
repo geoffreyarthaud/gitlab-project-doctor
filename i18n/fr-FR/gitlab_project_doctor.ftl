@@ -37,3 +37,6 @@ duplicate-assets-option-onepackage = L'option "The number of duplicate assets to
 duplicate-assets-option-warn = L'option "The number of duplicate assets to keep" ne vaut PAS 1
 duplicate-assets-option-error = Cannot get the number of duplicate assets to keep option
 conf-fix = Pour corriger : {$url}
+container-analysing = Analyse du container registry
+container-report = {$image_count} images dans le container registry. {$old_image_count} datent de plus de {$nb_days} jours
+container-summary = Taille du container registry : {$registry_size}
