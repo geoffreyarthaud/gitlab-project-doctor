@@ -1,6 +1,6 @@
 [package]
 name = "gitlab-project-doctor"
-version = "0.3.0-SNAPSHOT"
+version = "0.3.1"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,10 +11,10 @@ chrono = "0.4.20"
 console = "0.15.1"
 derive_builder = "0.11.2"
 dialoguer = "0.10.2"
-git2 = "0.13.25"
-gitlab = "0.1502.0"
+git2 = "0.15.0"
+gitlab = "0.1505.0"
 graphql_client = "0.11.0"
-human_bytes = "0.3.1"
+human_bytes = "0.4.1"
 i18n-embed = { version = "0.13.4", features = ["fluent-system", "desktop-requester"] }
 i18n-embed-fl = "0.6.4"
 indicatif = "0.17.0"
